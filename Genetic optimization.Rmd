@@ -1,0 +1,145 @@
+---
+title: "Optimization using GA"
+output: html_document
+---
+
+## Waiting time 계산을 위한 Parameters
+
+- Read data
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+passen_final<-read_csv("data/passen_final.csv")
+dtg_final2<-read_csv("data/dtg_final2.csv")
+TravelTime<-read_csv("data/TravelTime.csv")
+```
+
+- 분석에 쓰이는 파라미터는 아래와 같음
+
+```{r}
+Time<-ymd_hms("2017-03-02 00:00:00")+hours(0:23)
+Time<-c(Time,Time + minutes(30)) %>% sort()
+L<-1
+Rho<-4 # Road density by grids
+N<-42 # Number of grids
+Theta <-vector("list",24) # Call demand density
+Mu <-vector("list",24) # Street demand density
+k<-0.1 # Ratio between Street and Call demand
+A <- vector("list",24) # Density of vacant vehicles
+v <- 30 # Vehicle speed
+E <- vector("list",24)
+```
+
+
+## 승하차자료를 이용한 DEMAND 가공 (Theta, Mu)
+- 승하차 자료를 이용하여 수요를 추출
+- 3월 2일 오전 12시부터 오후 11시 45분까지 60분 간격으로 총 24개
+- Grid의 갯수는 총 42개
+
+```{r}
+# 42개의 Grids
+ROI<-sort(c(61, 105, 136, 146, 154, 168, 184, 189, 190, 191, 194, 196, 199, 206, 225, 229, 230, 231, 233, 240, 241,
+       245, 246, 251, 253, 257, 258, 260, 266, 268, 318, 320, 375, 391, 395, 400, 424, 442, 459, 464, 465, 468))
+
+# 42개의 그리드에서 발생한 통행만 추출 > 각 그리드별/시간대별 수요 도출 
+tmp<-passen_final %>% filter(dprt_grid %in% ROI) %>% group_by(dprt_grid,dprt_time_60min) %>% summarise(n=n())
+tmp2<-data.frame(grid_id=rep(sort(ROI),each=24),time=Time)
+tmp2 <-tmp2 %>% left_join(tmp, by=c("grid_id"="dprt_grid","time"="dprt_time_60min"))
+tmp2[is.na(tmp2$n),]$n<-0
+
+# Call과 Street를 구분
+tmp2$theta<-tmp2$n*k
+tmp2$mu<-tmp2$n*(1-k)
+tmp2<-tmp2 %>% arrange(time,grid_id)
+
+# Theta와 Mu를 list로 저장
+for(i in 1:24) {
+ Theta[[i]]<-tmp2$theta[(N*i-N+1):(N*i)] 
+} 
+
+# Theta와 Mu를 list로 저장
+for(i in 1:24) {
+ Mu[[i]]<-tmp2$mu[(N*i-N+1):(N*i)] 
+} 
+```
+
+## DTG raw data를 이용한 빈택시 댓수 가공 (A)
+- dtg_final2 를 이용함
+- 3월 2일 오전 12시부터 오후 12시 00분까지 60분 간격으로 총 24개
+- 매 시간마다의 빈차 댓수 매핑
+- Grid의 갯수는 총 42개
+
+```{r}
+# 60분 단위 시간 생성
+dtg_final2$dprt_time_60min <- floor_date(dtg_final2$time,"60 minutes")
+
+# 매 시간마다 각 그리드에 존재하는 빈차 댓수 구하기
+tmp<-dtg_final2 %>% 
+  filter(time2 %in% Time, # 매 정각 시간대의 DTG-raw만 필터 
+         onoff==0 # 빈차인것만 
+         )%>% 
+  group_by(dprt_grid, dprt_time_60min) %>% # Grid 번호, 시각으로 그룹
+  summarise(A=n()) # 각 그룹별 택시 댓수 추출 
+
+# 빈 시간대, 0값으로 채우기 
+tmp2<-data.frame(grid_id=rep(sort(ROI),each=24),time=Time)
+tmp2 <-tmp2 %>% left_join(tmp, by=c("grid_id"="dprt_grid","time"="dprt_time_60min"))
+tmp2[is.na(tmp2$A),]$A<-0
+tmp2<-tmp2 %>% arrange(time,grid_id)
+
+# A를 list로 저장
+for(i in 1:24) {
+ A[[i]]<-tmp2$A[(N*i-N+1):(N*i)] 
+} 
+```
+
+## Travel time 도출 (E)
+
+- 각 grid에 차량이 존재하지 않을 경우, 가장 가까운 지역의 차량이 호출된다고 가정
+- 이를 표현하기 위해서는 그리드간의 통행시간 정보가 필요함
+- TravelTIme object는 2017년 1월부터 3월까지의 승하차 자료를 기반으로 grid 간 통행 시간의 median 값을 도출한 테이블임
+- 이 테이블을 기준으로 차량이 한대도 없는 그리드의 Waiting time 도출이 가능함 
+
+```{r}
+for(i in 1:24) {
+ E[[i]]<-TravelTime %>% filter(dprt_time_60min == Time[i]) 
+} 
+```
+
+
+## Total expected waiting time
+
+- Call Waiting Time (min)
+```{r}
+CallWatingTime<-Theta[[1]]*2/(3*v*(pi^0.5)*(A[[1]]^0.5))*60
+
+
+# Nan 값을 대체 (A==0인 element)
+nancall<-is.nan(CallWatingTime)
+if (sum(nancall)>0){
+  minTTs<-NULL
+  for (i in 1:sum(nancall)){
+    idx<-which(nancall)
+    minTT<-min(TravelTime %>% filter(arrvl_grid == ROI[idx[i]]) %>% pull(median_tt))
+    minTTs<-c(minTTs,minTT)
+  }
+}
+CallWatingTime[nancall]<-Theta[[1]][nancall]*minTTs
+```
+
+- Street Waiting time (min)
+```{r}
+StreetWaitingTime<-Mu[[1]]*Rho/((A[[1]]+1)*v)*60
+
+# Nan 값을 대체 (A==0인 element)
+StreetWaitingTime[nancall]<-Mu[[1]][nancall]*minTTs
+```
+
+- 최종 index 계산
+
+```{r}
+TotalExpectedWatingTime <- CallWatingTime + StreetWaitingTime
+AverageExpectedWatingTime<-sum(TotalExpectedWatingTime)/N
+```
+
