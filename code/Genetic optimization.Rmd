@@ -1,0 +1,168 @@
+---
+title: "Optimization using GA"
+output: html_document
+---
+
+## Derive parameters
+
+- Read data
+
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+
+# Passenger drop on, off data
+passen_final<-read_csv("data/passen_final.csv")
+
+# DTG data of taxis
+dtg_final2<-read_csv("data/dtg_final2.csv")
+
+# Median travel time between zones
+TravelTime<-read_csv("data/TravelTime.csv")
+```
+
+- Parameters
+
+```{r}
+# Time index; 30 minutes intervals
+Time<-ymd_hms("2017-03-02 00:00:00")+hours(0:23)
+Time<-c(Time,Time + minutes(30)) %>% sort()
+
+# Length of grid (1km)
+L<-1
+
+# Road density by zones
+Rho<-4 # Road density by grids
+
+N<-42 # Number of grids
+Phi <-vector("list",48) # Call demand density #Phi
+Xi <-vector("list",48) # Street demand density #Xi 
+k<-0.1 # Ratio between Street and Call demand
+A <- vector("list",48) # Density of vacant vehicles at zones
+B <- vector("list",48) # Density of vacant vehicles at stations
+v <- 30 # Vehicle speed
+Epsilon <- vector("list",48) # Travel time between zones
+```
+
+
+## Data preprocessing for calculating passengers' demand
+- 승하차 자료를 이용하여 수요를 추출
+- 3월 2일 오전 12시부터 오후 11시 45분까지 60분 간격으로 총 48개
+- Grid의 갯수는 총 42개
+
+```{r}
+# 42 Grids
+ROI<-sort(c(61, 105, 136, 146, 154, 168, 184, 189, 190, 191, 194, 196, 199, 206, 225, 229, 230, 231, 233, 240, 241,
+       245, 246, 251, 253, 257, 258, 260, 266, 268, 318, 320, 375, 391, 395, 400, 424, 442, 459, 464, 465, 468))
+
+# Make 30 minutes interval
+passen_final$dprt_time_30min <- floor_date(passen_final$dprt_time,"30 minutes")
+
+# 42개의 그리드에서 발생한 통행만 추출 > 각 그리드별/시간대별 수요 도출 
+tmp<-passen_final %>% filter(dprt_grid %in% ROI, dprt_st_id ==0) %>% group_by(dprt_grid,dprt_time_30min) %>% summarise(n=n())
+tmp2<-data.frame(grid_id=rep(sort(ROI),each=48),time=Time)
+tmp2 <-tmp2 %>% left_join(tmp, by=c("grid_id"="dprt_grid","time"="dprt_time_30min"))
+tmp2[is.na(tmp2$n),]$n<-0
+
+# Call과 Street를 구분
+tmp2$Phi<-tmp2$n*k
+tmp2$Xi<-tmp2$n*(1-k)
+tmp2<-tmp2 %>% arrange(time,grid_id)
+
+# Station 
+tmp3<-passen_final %>% filter(dprt_grid %in% ROI, dprt_st_id !=0) %>% group_by(dprt_st_id,dprt_time_30min) %>% summarise(n=n())
+tmp4<-data.frame(dprt_st_id=rep(sort(unique(tmp3$dprt_st_id)),each=48),time=Time)
+tmp4 <-tmp4 %>% left_join(tmp3, by=c("dprt_st_id"="dprt_st_id","time"="dprt_time_30min"))
+tmp4[is.na(tmp4$n),]$n<-0
+
+# Save Phi and Xi to list
+for(i in 1:48) {
+ Phi[[i]]<-tmp2$Phi[(N*i-N+1):(N*i)] 
+} 
+
+for(i in 1:48) {
+ Xi[[i]]<-tmp2$Xi[(N*i-N+1):(N*i)] 
+} 
+```
+
+## DTG raw data를 이용한 빈택시 댓수 가공 (A)
+- dtg_final2 를 이용함
+- 3월 2일 오전 12시부터 오후 12시 00분까지 30분 간격으로 총 48개
+- 매 시간마다의 빈차 댓수 매핑
+- Grid의 갯수는 총 42개
+
+```{r}
+# Make time variable every 30 minutes
+dtg_final2$dprt_time_30min <- floor_date(dtg_final2$time,"30 minutes")
+
+# Find the number of empty taxis in each grid every hour
+tmp<-dtg_final2 %>% 
+  filter(time2 %in% Time, # Filter DTG-raw only in every hour 
+         onoff==0 # Extract only vacant taxi 
+         )%>% 
+  group_by(dprt_grid, dprt_time_30min) %>% # Grid 번호, 시각으로 그룹
+  summarise(A=n()) # 각 그룹별 택시 댓수 추출
+
+
+
+# 빈 시간대, 0값으로 채우기 
+tmp2<-data.frame(grid_id=rep(sort(ROI),each=24),time=Time)
+tmp2 <-tmp2 %>% left_join(tmp, by=c("grid_id"="dprt_grid","time"="dprt_time_60min"))
+tmp2[is.na(tmp2$A),]$A<-0
+tmp2<-tmp2 %>% arrange(time,grid_id)
+
+# A를 list로 저장
+for(i in 1:24) {
+ A[[i]]<-tmp2$A[(N*i-N+1):(N*i)] 
+} 
+```
+
+## Travel time 도출 (E)
+
+- 각 grid에 차량이 존재하지 않을 경우, 가장 가까운 지역의 차량이 호출된다고 가정
+- 이를 표현하기 위해서는 그리드간의 통행시간 정보가 필요함
+- TravelTIme object는 2017년 1월부터 3월까지의 승하차 자료를 기반으로 grid 간 통행 시간의 median 값을 도출한 테이블임
+- 이 테이블을 기준으로 차량이 한대도 없는 그리드의 Waiting time 도출이 가능함 
+
+```{r}
+for(i in 1:24) {
+ epsilon[[i]]<-TravelTime %>% filter(dprt_time_60min == Time[i]) 
+} 
+```
+
+## Total expected waiting time
+
+- Call Waiting Time (min)
+```{r}
+CallWatingTime<-Theta[[1]]*2/(3*v*(pi^0.5)*(A[[1]]^0.5))*60
+
+
+# Nan 값을 대체 (A==0인 element)
+nancall<-is.nan(CallWatingTime)
+if (sum(nancall)>0){
+  minTTs<-NULL
+  for (i in 1:sum(nancall)){
+    idx<-which(nancall)
+    minTT<-min(TravelTime %>% filter(arrvl_grid == ROI[idx[i]]) %>% pull(median_tt))
+    minTTs<-c(minTTs,minTT)
+  }
+}
+CallWatingTime[nancall]<-Theta[[1]][nancall]*minTTs
+```
+
+- Street Waiting time (min)
+```{r}
+StreetWaitingTime<-Mu[[1]]*Rho/((A[[1]]+1)*v)*60
+
+# Nan 값을 대체 (A==0인 element)
+StreetWaitingTime[nancall]<-Mu[[1]][nancall]*minTTs
+```
+
+- 최종 index 계산
+
+```{r}
+TotalExpectedWatingTime <- CallWatingTime + StreetWaitingTime
+AverageExpectedWatingTime<-sum(TotalExpectedWatingTime)/N
+```
+
