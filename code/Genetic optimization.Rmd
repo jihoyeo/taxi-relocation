@@ -16,7 +16,7 @@ library(lubridate)
 passen_final<-read_csv("data/passen_final.csv")
 
 # DTG data of taxis
-dtg_final2<-read_csv("data/dtg_final2.csv")
+dtg_final<-read_csv("data/dtg_final.csv")
 
 # Median travel time between zones
 TravelTime<-read_csv("data/TravelTime.csv")
@@ -36,9 +36,11 @@ L<-1
 Rho<-4 # Road density by grids
 
 N<-42 # Number of grids
-Phi <-vector("list",48) # Call demand density #Phi
-Xi <-vector("list",48) # Street demand density #Xi 
+Phi <-vector("list",48) # Call demand density of zones #Phi
+Xi <-vector("list",48) # Street demand density of zones #Xi 
 k<-0.1 # Ratio between Street and Call demand
+Psi<-vector("list",48) # Arrival rate of zones 
+
 A <- vector("list",48) # Density of vacant vehicles at zones
 B <- vector("list",48) # Density of vacant vehicles at stations
 v <- 30 # Vehicle speed
