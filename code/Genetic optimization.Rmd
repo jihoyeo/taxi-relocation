@@ -20,6 +20,10 @@ dtg_final<-read_csv("data/dtg_final.csv")
 
 # Median travel time between zones
 TravelTime<-read_csv("data/TravelTime.csv")
+
+# Road length by grid (unit: kilometer)
+road_length <- read.csv("data/road_length_by_grid.csv")
+road_length<- road_length %>% filter(grid_id %in% ROI) %>% select(grid_id,LengthSum) %>% arrange(grid_id)
 ```
 
 - Parameters
@@ -33,13 +37,16 @@ Time<-c(Time,Time + minutes(30)) %>% sort()
 L<-1
 
 # Road density by zones
-Rho<-4 # Road density by grids
+Rho<-road_length$LengthSum # Road density by grids
 
 N<-42 # Number of grids
+M<-5
 Phi <-vector("list",48) # Call demand density of zones #Phi
 Xi <-vector("list",48) # Street demand density of zones #Xi 
 k<-0.1 # Ratio between Street and Call demand
 Psi<-vector("list",48) # Arrival rate of zones 
+
+Eta<-vector("list",48) # Maximum discharge rate at hubs 
 
 A <- vector("list",48) # Density of vacant vehicles at zones
 B <- vector("list",48) # Density of vacant vehicles at stations
@@ -60,7 +67,12 @@ ROI<-sort(c(61, 105, 136, 146, 154, 168, 184, 189, 190, 191, 194, 196, 199, 206,
 
 # Make 30 minutes interval
 passen_final$dprt_time_30min <- floor_date(passen_final$dprt_time,"30 minutes")
+passen_final$arrvl_time_30min <- floor_date(passen_final$arrvl_time,"30 minutes")
+```
 
+- Street-hailing rate(Kxi) and Calling rate(Phi)
+
+```{r}
 # 42개의 그리드에서 발생한 통행만 추출 > 각 그리드별/시간대별 수요 도출 
 tmp<-passen_final %>% filter(dprt_grid %in% ROI, dprt_st_id ==0) %>% group_by(dprt_grid,dprt_time_30min) %>% summarise(n=n())
 tmp2<-data.frame(grid_id=rep(sort(ROI),each=48),time=Time)
@@ -72,12 +84,6 @@ tmp2$Phi<-tmp2$n*k
 tmp2$Xi<-tmp2$n*(1-k)
 tmp2<-tmp2 %>% arrange(time,grid_id)
 
-# Station 
-tmp3<-passen_final %>% filter(dprt_grid %in% ROI, dprt_st_id !=0) %>% group_by(dprt_st_id,dprt_time_30min) %>% summarise(n=n())
-tmp4<-data.frame(dprt_st_id=rep(sort(unique(tmp3$dprt_st_id)),each=48),time=Time)
-tmp4 <-tmp4 %>% left_join(tmp3, by=c("dprt_st_id"="dprt_st_id","time"="dprt_time_30min"))
-tmp4[is.na(tmp4$n),]$n<-0
-
 # Save Phi and Xi to list
 for(i in 1:48) {
  Phi[[i]]<-tmp2$Phi[(N*i-N+1):(N*i)] 
@@ -88,7 +94,35 @@ for(i in 1:48) {
 } 
 ```
 
-## DTG raw data를 이용한 빈택시 댓수 가공 (A)
+
+- Arrival rate at zones (Psi)
+
+```{r}
+tmp <- passen_final %>% filter(arrvl_grid %in% ROI) %>% group_by(arrvl_grid,arrvl_time_30min) %>% summarise(n=n())
+arate<-data.frame(grid_id=rep(sort(ROI),each=48),time=Time)
+arate <-arate %>% left_join(tmp, by=c("grid_id"="arrvl_grid","time"="arrvl_time_30min"))
+arate[is.na(arate$n),]$n<-0
+
+for(i in 1:48) {
+ Psi[[i]]<-arate$n[(N*i-N+1):(N*i)] 
+} 
+```
+
+- Maximum discharge rate at hubs (Eta)
+
+```{r}
+# Station 
+tmp<-passen_final %>% filter(dprt_grid %in% ROI, dprt_st_id !=0) %>% group_by(dprt_st_id,dprt_time_30min) %>% summarise(n=n())
+drate<-data.frame(dprt_st_id=rep(sort(unique(tmp$dprt_st_id)),each=48),time=Time)
+drate <-drate %>% left_join(tmp, by=c("dprt_st_id"="dprt_st_id","time"="dprt_time_30min"))
+drate[is.na(drate$n),]$n<-0
+
+for(i in 1:48) {
+ Eta[[i]]<-drate$n[(M*i-M+1):(M*i)] 
+}
+```
+
+## DTG raw data를 이용한 빈택시 댓수 가공 (A, B)
 - dtg_final2 를 이용함
 - 3월 2일 오전 12시부터 오후 12시 00분까지 30분 간격으로 총 48개
 - 매 시간마다의 빈차 댓수 매핑
@@ -96,31 +130,29 @@ for(i in 1:48) {
 
 ```{r}
 # Make time variable every 30 minutes
-dtg_final2$dprt_time_30min <- floor_date(dtg_final2$time,"30 minutes")
+dtg_final$dprt_time_30min <- floor_date(dtg_final$time,"30 minutes")
 
 # Find the number of empty taxis in each grid every hour
-tmp<-dtg_final2 %>% 
+tmp<-dtg_final %>% 
   filter(time2 %in% Time, # Filter DTG-raw only in every hour 
          onoff==0 # Extract only vacant taxi 
          )%>% 
   group_by(dprt_grid, dprt_time_30min) %>% # Grid 번호, 시각으로 그룹
   summarise(A=n()) # 각 그룹별 택시 댓수 추출
 
-
-
 # 빈 시간대, 0값으로 채우기 
-tmp2<-data.frame(grid_id=rep(sort(ROI),each=24),time=Time)
-tmp2 <-tmp2 %>% left_join(tmp, by=c("grid_id"="dprt_grid","time"="dprt_time_60min"))
+tmp2<-data.frame(grid_id=rep(sort(ROI),each=48),time=Time)
+tmp2 <-tmp2 %>% left_join(tmp, by=c("grid_id"="dprt_grid","time"="dprt_time_30min"))
 tmp2[is.na(tmp2$A),]$A<-0
 tmp2<-tmp2 %>% arrange(time,grid_id)
 
 # A를 list로 저장
-for(i in 1:24) {
+for(i in 1:48) {
  A[[i]]<-tmp2$A[(N*i-N+1):(N*i)] 
 } 
 ```
 
-## Travel time 도출 (E)
+## Travel time 도출 (E) - 미완성
 
 - 각 grid에 차량이 존재하지 않을 경우, 가장 가까운 지역의 차량이 호출된다고 가정
 - 이를 표현하기 위해서는 그리드간의 통행시간 정보가 필요함
@@ -133,11 +165,56 @@ for(i in 1:24) {
 } 
 ```
 
+
+
+# Optimization using GA
+
+## Desicion variable
+
+```{r}
+X <- 0
+Y <- 0
+i<-2
+```
+
+## Constraint
+
+- Cons 1
+```{r}
+X + Y == 0 
+```
+
+- Cons 2
+```{r}
+A_delta <- A[[i]] + (-Xi[[i]]-Phi[[i]]+Psi[[i]]) + X # Equation (3) 
+```
+
+- Cons 3 
+```{r}
+B_delta <- B[[i]] - Eta[[i]] - 1.96 * SD_Eta[[i]] + Y
+B_delta >= 0
+```
+
+- Cons 4
+```{r}
+A_delta - 1.96(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]) + Y >= 0
+```
+
+- Cons 5
+```{r}
+B
+```
+
+
 ## Total expected waiting time
 
 - Call Waiting Time (min)
+- Euqation (14) in the paper
 ```{r}
 CallWatingTime<-Theta[[1]]*2/(3*v*(pi^0.5)*(A[[1]]^0.5))*60
+
+
+  
 
 
 # Nan 값을 대체 (A==0인 element)
