@@ -16,10 +16,15 @@ library(lubridate)
 passen_final<-read_csv("data/passen_final.csv")
 
 # DTG data of taxis
-dtg_final<-read_csv("data/dtg_final.csv")
+dtg_final<-read_csv("data/dtg_final_saved.csv")
 
 # Median travel time between zones
 TravelTime<-read_csv("data/TravelTime.csv")
+
+# All passenger pick-up/drop-off in 3 months
+### For derive standard deviation of demand
+
+passen_all<-read_csv("data/passen_all.csv")
 
 # Road length by grid (unit: kilometer)
 road_length <- read.csv("data/road_length_by_grid.csv")
@@ -64,6 +69,8 @@ Epsilon <- vector("list",48) # Travel time between zones
 # 42 Grids
 ROI<-sort(c(61, 105, 136, 146, 154, 168, 184, 189, 190, 191, 194, 196, 199, 206, 225, 229, 230, 231, 233, 240, 241,
        245, 246, 251, 253, 257, 258, 260, 266, 268, 318, 320, 375, 391, 395, 400, 424, 442, 459, 464, 465, 468))
+
+ROI_hub <- c(91, 92, 94, 95, 99)
 
 # Make 30 minutes interval
 passen_final$dprt_time_30min <- floor_date(passen_final$dprt_time,"30 minutes")
@@ -127,10 +134,11 @@ for(i in 1:48) {
 - 3월 2일 오전 12시부터 오후 12시 00분까지 30분 간격으로 총 48개
 - 매 시간마다의 빈차 댓수 매핑
 - Grid의 갯수는 총 42개
+- Vacant taxis in zones (A)
 
 ```{r}
 # Make time variable every 30 minutes
-dtg_final$dprt_time_30min <- floor_date(dtg_final$time,"30 minutes")
+dtg_final$dprt_time_30min <- floor_date(dtg_final$time2,"30 minutes")
 
 # Find the number of empty taxis in each grid every hour
 tmp<-dtg_final %>% 
@@ -152,6 +160,30 @@ for(i in 1:48) {
 } 
 ```
 
+- Vacant taxis in hubs (B)
+
+```{r}
+# Find the number of empty taxis in each grid every hour
+tmp<-dtg_final %>% 
+  filter(time2 %in% Time, # Filter DTG-raw only in every hour 
+         onoff==0 # Extract only vacant taxi 
+         )%>% 
+  group_by(st_id, dprt_time_30min) %>% # Grid 번호, 시각으로 그룹
+  summarise(B=n()) # 각 그룹별 택시 댓수 추출
+
+# 빈 시간대, 0값으로 채우기 
+tmp2<-data.frame(st_id=rep(ROI_hub,each=48),time=Time)
+tmp2 <-tmp2 %>% left_join(tmp, by=c("st_id"="st_id","time"="dprt_time_30min"))
+tmp2[is.na(tmp2$B),]$B<-0
+tmp2<-tmp2 %>% arrange(time,st_id)
+
+# A를 list로 저장
+for(i in 1:48) {
+ B[[i]]<-tmp2$B[(M*i-M+1):(M*i)] 
+} 
+```
+
+
 ## Travel time 도출 (E) - 미완성
 
 - 각 grid에 차량이 존재하지 않을 경우, 가장 가까운 지역의 차량이 호출된다고 가정
@@ -160,7 +192,7 @@ for(i in 1:48) {
 - 이 테이블을 기준으로 차량이 한대도 없는 그리드의 Waiting time 도출이 가능함 
 
 ```{r}
-for(i in 1:24) {
+for(i in 1:48) {
  epsilon[[i]]<-TravelTime %>% filter(dprt_time_60min == Time[i]) 
 } 
 ```
@@ -175,13 +207,19 @@ for(i in 1:24) {
 X <- 0
 Y <- 0
 i<-2
+T_1 <- 0
+T_2 <- 0
 ```
 
 ## Constraint
 
 - Cons 1
+X : Relative number of relocation taxis of all zones
+Y : Relative number of relocation taxis of all hubs
+K : Additional vehicles to have to be put
+
 ```{r}
-X + Y == 0 
+X + Y + K == 0
 ```
 
 - Cons 2
@@ -200,48 +238,29 @@ B_delta >= 0
 A_delta - 1.96(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]) + Y >= 0
 ```
 
-- Cons 5
+- Cons 5 (Remove)
+
+- Cons 6 (Average assigned time of calling)
+
 ```{r}
-B
+CallTime <- (pi^0.5*2)/(2^1.5*v)/(A_delta^0.5 + A[[i]]^0.5)*60
+CallTime[is.nan(CallTime)] <- 999
+```
+
+- Cons 7 (Average assigned time of street-hailing)
+
+```{r}
+StreetTime <- Rho[[i]]/v/(A_delta - A[[i]])*log((A_delta +1)/(A[[i]]+1))*60
+StreetTime[is.nan(StreetTime)] <- 999
+```
+
+## Construct GA module
+
+```{r}
+library(GA)
 ```
 
 
-## Total expected waiting time
-
-- Call Waiting Time (min)
-- Euqation (14) in the paper
-```{r}
-CallWatingTime<-Theta[[1]]*2/(3*v*(pi^0.5)*(A[[1]]^0.5))*60
 
 
-  
-
-
-# Nan 값을 대체 (A==0인 element)
-nancall<-is.nan(CallWatingTime)
-if (sum(nancall)>0){
-  minTTs<-NULL
-  for (i in 1:sum(nancall)){
-    idx<-which(nancall)
-    minTT<-min(TravelTime %>% filter(arrvl_grid == ROI[idx[i]]) %>% pull(median_tt))
-    minTTs<-c(minTTs,minTT)
-  }
-}
-CallWatingTime[nancall]<-Theta[[1]][nancall]*minTTs
-```
-
-- Street Waiting time (min)
-```{r}
-StreetWaitingTime<-Mu[[1]]*Rho/((A[[1]]+1)*v)*60
-
-# Nan 값을 대체 (A==0인 element)
-StreetWaitingTime[nancall]<-Mu[[1]][nancall]*minTTs
-```
-
-- 최종 index 계산
-
-```{r}
-TotalExpectedWatingTime <- CallWatingTime + StreetWaitingTime
-AverageExpectedWatingTime<-sum(TotalExpectedWatingTime)/N
-```
 
