@@ -296,306 +296,17 @@ StreetTime[is.nan(StreetTime)] <- 999
 
 ## Construct GA module
 
+- Minimize the summation of total assigned time of passengers and operating cost
+
+#### Relocation function using GA
 ```{r}
-library(GA)
-
-f <- function(x){
-  cost<- sum(x[1:42])
-  return(cost)
-}
-
-c1 <- function(x) {
-  x<-floor(x)
-  conv<-sum(x[1:42])+sum(x[43:47])
-  con1 <- max(0,abs(conv)*1000000)
-  return(con1)
-  }
-
-
-c2 <- function(x) {
-  x<-floor(x)
-  con2<-0
-  zone_cons <- A_delta[[i]] - 0.1*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]) + x[1:42]
-  #0.65
-  
-  for (k in 1:42){
-    con2 <- con2 + min(0,zone_cons[k])*1000000
-  }
-  return(con2)
-  }
-
-c3 <- function(x){
-  x<-floor(x)
-  con3<-0
-  hub_cons <- B_delta[[i]] + x[43:47]
-  for (k in 1:5){
-    con3 <- con3 + min(0, hub_cons[k])*1000000
-  }
-  return(con3)
-}
-
-# Average assigned time of calling
-c4 <- function(x){
-  x<-floor(x)
-  con4<-0
-  CallTime <- ((pi^0.5*2)/(2^1.5*v[[i]])/((A_delta[[i]]+x[k])^0.5 + A[[i]]^0.5))*60-0.3
-  
-  
-  CallTime[is.nan(CallTime)] <- 999
-  for (k in 1:42){
-    con4 <- con4 + max(0, CallTime[[k]]*1000000)
-  }
-  return(con4)
-}
-
-#  Average assigned time of street-hailing
-c5 <- function(x){
-  x<-floor(x)
-  con5<-0
-  StreetTime <- (Rho/v[[i]]/(A_delta[[i]]+x[k] - A[[i]])*log((A_delta[[i]]+x[k] +1)/(A[[i]]+1)))*60-0.6
-  StreetTime[is.nan(StreetTime)] <- 999
-  for (k in 1:42){
-    con5 <- con5 + max(0, StreetTime*1000000)
-  }
-  return(con5)
-}
-
-zone_min <- -(A_delta[[i]] - 0.1*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]))
-hub_min <- rep(-sum(zone_min)/4,5)
-suggestedSol <- matrix(c(zone_min,hub_min),nrow=1)
-
-ga1 <- ga(
-  type = "real-valued",
-  fitness = function(x){
-    return(-f(x)-c1(x)+c2(x)+c3(x)-c4(x)-c5(x))},
-  lower = c(rep(-150,42),rep(0,5)), upper = rep(150,47),
-  popSize = 100, maxiter = 100000, run = 2000,
-  pmutation = 0.5,
-  pcrossover = 0.5,
-  suggestions = suggestedSol
-)
-
-tmp<-summary(ga1)
-solution_x <- floor(tmp$solution[1,])
-solution_x
-c1(solution_x)
-c2(solution_x)
-c3(solution_x)
-c4(solution_x)
-c5(solution_x)
--f(solution_x)
-# Efficiency
--f(solution_x)*100/sum(A[[i]]+Psi[[i]])
-solution_x + c(A_delta[[i]],B[[i]])
-
-CallTime <- (pi^0.5*2)/(2^1.5*v[[i]])/(max(A_delta[[i]]+solution_x[1:42],0)^0.5 + A[[i]]^0.5)*60
-StreetTime <- Rho/v[[i]]/(max(A_delta[[i]]+solution_x[1:42],0) - A[[i]])*log((max(A_delta[[i]]+solution_x[1:42],0) +1)/(A[[i]]+1))*60
-
-
-
-T<-seq(1,2,0.2)
-value<-sapply(1:length(T), function(k){
-  # Average assigned time of calling
-  c4 <- function(x){
-  x<-floor(x)
-  con4<-0
-  CallTime <- (pi^0.5*2)/(2^1.5*v[[i]])/(max(A_delta[[i]]+x[1:42],0)^0.5 + A[[i]]^0.5)*60-T[k]/2
-  CallTime[is.nan(CallTime)] <- 999
-  for (k in 1:42){
-    con4 <- con4 + max(0, CallTime[[k]]*1000000)
-  }
-  return(con4)
-}
-  #  Average assigned time of street-hailing
-  c5 <- function(x){
-    x<-floor(x)
-    con5<-0
-    StreetTime <- Rho/v[[i]]/(max(A_delta[[i]]+x[1:42],0) - A[[i]])*log((max(A_delta[[i]]+x[1:42],0) +1)/(A[[i]]+1))*60-T[k]
-    StreetTime[is.nan(StreetTime)] <- 999
-    for (k in 1:42){
-      con5 <- con5 + max(0, StreetTime*1000000)
-    }
-    return(con5)
-  }
-
-  zone_min <- -(A_delta[[i]] - 0.1*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]))
-  hub_min <- rep(-sum(zone_min)/4,5)
-  suggestedSol <- matrix(c(zone_min,hub_min),nrow=1)
-  
-  print(k)
-
-  ga1 <- ga(
-    type = "real-valued",
-    fitness = function(x){
-      return(-f(x)-c1(x)+c2(x)+c3(x)-c4(x)-c5(x))},
-    lower = c(rep(-150,42),rep(0,5)), upper = rep(150,47),
-    popSize = 100, maxiter = 100000, run = 1000,
-    pmutation = 0.1,
-    pcrossover = 0.8,
-    suggestions = suggestedSol
-  )
-  
-  tmp<-summary(ga1)
-  solution_x <- floor(tmp$solution)
-  return(-f(solution_x)*100/sum(A[[i]]+Psi[[i]]))
-})
-
-plot(T,value*sum(A[[i]]+Psi[[i]]))
-value*sum(A[[i]]+Psi[[i]])/100
-value2<-value
-value2[2]<- -f(solution_x)*100/sum(A[[i]]+Psi[[i]])
-plot(T,value2)
-
-```
-
-## Module 2
-
-- Minimize both total assigned time of passengers and operating cost
-
-```{r}
-f <- function(x){
-  # 7.05$/hour >> 3.5$/30min 
-  # or 18626won/hr >> 15.73$/hr >> 7.89$/30min
-  CallTime <- (pi^0.5*2)/(2^1.5*v[[i]])/((A_delta[[i]]+x[1:42])^0.5 + A[[i]]^0.5)*60
-  StreetTime <- Rho/v[[i]]/((A_delta[[i]]+x[1:42]) - A[[i]])*log(((A_delta[[i]]+x[1:42]) +1)/(A[[i]]+1))*60
-  CallTime[is.nan(CallTime)]<-999
-  StreetTime[is.nan(StreetTime)]<-999
-  CallTime[is.infinite(CallTime)]<-999
-  StreetTime[is.infinite(StreetTime)]<-999
-  PassengerCost <- sum(CallTime*Xi[[i]]+StreetTime*Phi[[i]]) * 7.89
-  
-  # 6km/liter >> 0.73$/liter >> 8.22km/$ >> 0.12$/km
-  # speed: 30km/h >> 15km/30min >> 1.8$/30min
-  OperatingCost <- sum(x[1:42])*1.8
-  
-  TotalCost<-PassengerCost + OperatingCost
-  return(TotalCost)
-}
-
-# Whole system conservation
-c1 <- function(x) {
-  conv<-sum(x[1:42])+sum(x[43:47])
-  con1 <- max(0,abs(conv)*1000000)
-  return(con1)
-  }
-
-# Zonal conservation
-c2 <- function(x) {
-  con2<-0
-  zone_cons <- A_delta[[i]] - 0.1*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]) + x[1:42]
-  #0.65
-  
-  for (k in 1:42){
-    con2 <- con2 + min(0,zone_cons[k])*1000000
-  }
-  return(con2)
-  }
-
-# Hub conservation
-c3 <- function(x){
-  con3<-0
-  hub_cons <- B_delta[[i]] + x[43:47]
-  for (k in 1:5){
-    con3 <- con3 + min(0, hub_cons[k])*1000000
-  }
-  return(con3)
-}
-
-fitness_final<-function(x){
-  x2<-floor(x)
-  -f(x2)-c1(x2)+c2(x2)+c3(x2)
-}
-
-ga2 <- ga(
-  type = "real-valued",
-  fitness = fitness_final,
-  lower = c(rep(-150,42),ifelse(-floor(B_delta[[i]])<0,0,-floor(B_delta[[i]]))),
-  upper = rep(150,47) ,
-  popSize = 100, maxiter = 100000, run = 2000,
-  pmutation = 0.5,
-  pcrossover = 0.5
-)
-
-tmp<-summary(ga2)
-x_solution<-floor(tmp$solution[1,])
-x_solution
-x_solution+c(A_delta[[i]],B_delta[[i]])
-
-f(x_solution)
-f(rep(50,47))
-c1(x_solution)
-c2(x_solution)
-c3(x_solution)
-```
-
-## Waiting time of passengers 
-- When there is only one vehicle
-```{r}
-# Call waiting time
-(pi^0.5)/(2^1.5*30)*60
-
-# Street waiting time
-Rho/30/2*60
-```
-
-
-
-## Compared to naive relocation
-
-```{r}
-## Cost function of Naive relocating
-zone_min <- -(A_delta[[i]] - 0.1*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]))
-hub_min <- rep(-sum(zone_min)/4,5)
-suggestedSol <- matrix(c(zone_min,hub_min),nrow=1)
-cost_function(suggestedSol)
-
-cost_function <- function(x, waiting_coeffi=9.57, operat_coeffi=1.8){
-  # 7.05$/hour >> 3.5$/30min 
-  # 22,775won/hr >> 19.14$/hr >> 9.57$/30min
-  CallTime <- (pi^0.5*2)/(2^1.5*v[[i]])/((A_delta[[i]]+x[1:42])^0.5 + A[[i]]^0.5)*60
-  StreetTime <- Rho/v[[i]]/((A_delta[[i]]+x[1:42]) - A[[i]])*log(((A_delta[[i]]+x[1:42]) +1)/(A[[i]]+1))*60
-  StreetTime[A_delta[[i]]+x[1:42] == A[[i]]] <- (Rho/v[[i]]/(A[[i]]+1))[A_delta[[i]]+x[1:42] == A[[i]]]
-  CallTime[is.nan(CallTime)]<-15
-  StreetTime[is.nan(StreetTime)]<-15
-  CallTime[is.infinite(CallTime)]<-15
-  StreetTime[is.infinite(StreetTime)]<-15
-  PassengerCost <- sum(CallTime*Xi[[i]]+StreetTime*Phi[[i]]) * waiting_coeffi
-  print(paste0("Passenger cost is ",round(PassengerCost,1), "$"))
-  
-  # vehicle operating cost: 0.3$/km
-  # 6km/l >> 0.73$/liter >> 8.22km/$ >> 0.12$/km
-  # speed: 30km/h >> 15km/30min >> 1.8$/30min*veh
-  OperatingCost <- sum(A[[i]]+Psi[[i]]+x[1:42])*operat_coeffi
-  print(paste0("Operating cost is ",round(OperatingCost,1), "$"))
-
-  
-  TotalCost<-PassengerCost + OperatingCost
-  print(paste0("Total cost is ",round(TotalCost,1), "$"))
-  return(c(PassengerCost,OperatingCost,TotalCost))
-}
-
-# Cost function of optimal relocating
-cost_function(x_solution)
-
-## Cost function of Naive relocating 
-zone_min <- -(A_delta[[i]] - 0.1*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]))
-hub_min <- rep(-sum(zone_min)/4,5)
-suggestedSol <- matrix(c(zone_min,hub_min),nrow=1)
-cost_function(suggestedSol)
-```
-
-## Sensitivity analysis
-
-#### Relocation function
-```{r}
-relocation_function <- function (uncertain=0.1, waiting_coeffi=9.57, operat_coeffi=1.8, i=1){
+relocation_function <- function (uncertain=0.1, waiting_coeffi=9.06, operat_coeffi=1.8, i=1,pmu=0.7,pcro=0.2){
   B_delta <- lapply(1:48, function (i) B[[i]] - Eta[[i]] - uncertain * SD_Eta[[i]]) 
   min_y <- sum(ifelse(-floor(B_delta[[i]])>0,-floor(B_delta[[i]]),0))
-  min_x <- -(A_delta[[i]] - uncertain*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]))
+  min_x <- -floor(A_delta[[i]] - uncertain*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]))
   
   f <- function(x){
-  # 7.05$/hour >> 3.5$/30min 
-  # or 18626won/hr >> 15.73$/hr >> 7.89$/30min
+  # 18626won/hr >> 15.73$/hr >> 7.89$/30min
   CallTime <- (pi^0.5*2)/(2^1.5*v[[i]])/((A_delta[[i]]+x[1:42])^0.5 + A[[i]]^0.5)*60
   StreetTime <- Rho/v[[i]]/((A_delta[[i]]+x[1:42]) - A[[i]])*log(((A_delta[[i]]+x[1:42]) +1)/(A[[i]]+1))*60
   StreetTime[A_delta[[i]]+x[1:42] == A[[i]]] <- (Rho/v[[i]]/(A[[i]]+1))[A_delta[[i]]+x[1:42] == A[[i]]]
@@ -623,28 +334,164 @@ relocation_function <- function (uncertain=0.1, waiting_coeffi=9.57, operat_coef
     x2<-floor(x)
     -f(x2)-c1(x2)
   }
-  
+ 
   ga2 <- ga(
     type = "real-valued",
     fitness = fitness_final,
     lower = min_x,
     upper = rep(150,42) ,
     popSize = 1000, maxiter = 100000, run = 2000,
-    pmutation = 0.7,
-    pcrossover = 0.2
-  )
+    pmutation = pmu,
+    pcrossover = pcro,
+    suggestions = min_x
+  ) 
   
   tmp<-summary(ga2)
   x_solution<-floor(tmp$solution[1,])
   cat("\014")
   return(x_solution)
 }
-
-x_tmp<-relocation_function(uncertain=0.1)
-cost_function(x_tmp)
-sum(x_tmp)
 ```
 
+#### Cost function (return total cost)
+
+```{r}
+cost_function <- function(x, waiting_coeffi=9.06, operat_coeffi=1.8, i=1){
+  # 7.05$/hour >> 3.5$/30min 
+  # 21,876won/hr >> 18.12$/hr >> 9.06$/30min
+  CallTime <- (pi^0.5*2)/(2^1.5*v[[i]])/((A_delta[[i]]+x[1:42])^0.5 + A[[i]]^0.5)*60
+  StreetTime <- Rho/v[[i]]/((A_delta[[i]]+x[1:42]) - A[[i]])*log(((A_delta[[i]]+x[1:42]) +1)/(A[[i]]+1))*60
+  StreetTime[A_delta[[i]]+x[1:42] == A[[i]]] <- (Rho/v[[i]]/(A[[i]]+1))[A_delta[[i]]+x[1:42] == A[[i]]]
+  CallTime[is.nan(CallTime)]<-15
+  StreetTime[is.nan(StreetTime)]<-15
+  CallTime[is.infinite(CallTime)]<-15
+  StreetTime[is.infinite(StreetTime)]<-15
+  PassengerCost <- sum(CallTime*Xi[[i]]+StreetTime*Phi[[i]]) * waiting_coeffi
+  print(paste0("Passenger cost is ",round(PassengerCost,1), "$"))
+  
+  # vehicle operating cost: 0.3$/km
+  # 6km/liter >> 0.73$/liter >> 8.22km/$ >> 0.12$/km
+  # speed: 30km/h >> 15km/30min >> 1.8$/30min*veh
+  OperatingCost <- sum(A[[i]]+Psi[[i]]+x[1:42])*operat_coeffi
+  print(paste0("Operating cost is ",round(OperatingCost,1), "$"))
+
+  
+  TotalCost<-PassengerCost + OperatingCost
+  print(paste0("Total cost is ",round(TotalCost,1), "$"))
+  return(c(PassengerCost,OperatingCost,TotalCost))
+}
+```
+
+#### Search hyper-parameter
+
+```{r}
+pmu <- seq(0.1,0.8,0.1)
+pcro <- seq(0.1,0.8,0.1)
+hyper_para<-data.frame(pmu=0,pcro=0,TotalCost=0)
+
+for (x in 5:length(pmu)){
+  for (y in 1:4){
+    for (z in 1:10){
+          tmp <- relocation_function(i=1,pmu=pmu[x], pcro = pcro[y])
+          tmp2 <- cost_function(tmp)[3]
+          tmp3<- data.frame(pmu=pmu[x],pcro=pcro[y],TotalCost=tmp2)
+          hyper_para<-rbind(hyper_para,tmp3)
+    }
+  }
+}
+
+hyper_para<-hyper_para[-1,]
+
+qplot(hyper_para$pmu,hyper_para$pcro, col=hyper_para$TotalCost)
+
+```
+
+
+
+#### Optimal Solution for one day
+
+- Derive # of relocating vehicles with optimal relocation
+
+```{r}
+x_sol_whole<-lapply(1:length(Time), function(k) relocation_function(i=k))
+```
+
+- Derive total cost of optimal relocation
+
+```{r}
+TC_optimal<-data.frame(t(sapply(1:length(Time), function(k) cost_function(x_sol_whole[[k]],i = k) )))
+colnames(TC_optimal)<-c("passen", "operat", "total")
+```
+
+- Derive # of relocating vehicles with naive relocation
+
+```{r}
+x_sol_naive<-lapply(1:length(Time), function(i){
+  zone_min <- -(floor(A_delta[[i]] - 0.1*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]])))
+  return(zone_min)
+} )
+```
+
+- Derive total cost of naive relocation
+
+```{r}
+TC_naive<- data.frame(t(sapply(1:length(Time), function(k) cost_function(x_sol_naive[[k]],i = k) )))
+colnames(TC_naive)<-c("passen", "operat", "total")
+```
+
+
+
+- Cost comparision between optimal & naive relocation over time
+
+```{r}
+library(scales)
+
+date_format <- function(format = "%H:%M") {
+
+    function(x) format(x, format)
+}
+
+
+ggplot(data=TC_optimal, aes(Time,total))+geom_point(size=2)+geom_line()+
+  geom_line(data=TC_naive,aes(x=Time,y=total,col="red"))+geom_point(data=TC_naive,aes(x=Time,y=total,col="red"),shape=17,size=2) +
+  scale_x_datetime(breaks = date_breaks("1 hour"), labels = date_format("%H:%M"))+
+  scale_y_continuous(name="Total Cost ($)")+
+  theme_bw(base_family = "serif") + 
+  theme(panel.grid.minor=element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, size=15),
+        axis.title.x = element_text(size=18),
+        axis.title.y = element_text(size=18),
+        axis.text.y  = element_text(angle=0, vjust=0.5, size=15),
+        legend.position="none")
+```
+
+- Calculate Total Cost reduction
+```{r}
+1-sum(TC_optimal$total)/sum(TC_naive$total)
+```
+
+
+#### Compared to naive relocation
+
+```{r}
+## Cost function of Naive relocating
+zone_min <- -(A_delta[[i]] - 0.1*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]))
+hub_min <- rep(-sum(zone_min)/4,5)
+suggestedSol <- matrix(c(zone_min,hub_min),nrow=1)
+cost_function(suggestedSol)
+
+
+# Cost function of optimal relocating
+cost_function(x_solution)
+
+## Cost function of Naive relocating 
+zone_min <- -(A_delta[[i]] - 0.1*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]]))
+hub_min <- rep(-sum(zone_min)/4,5)
+suggestedSol <- matrix(c(zone_min,hub_min),nrow=1)
+cost_function(suggestedSol)
+```
+
+## Sensitivity analysis
 
 #### Uncertainty factor
 - Now 0.1
@@ -686,7 +533,16 @@ result_operat <-lapply(1:length(operat_coeffi), function(k) relocation_function(
 ```{r}
 library(ggplot2)
 tmp<- sapply(result_uncertain,cost_function)
-qplot(uncertain,tmp[3,],ylim=c(5500,5800))
+qplot(uncertain,tmp[3,])+
+  scale_y_continuous(name="Total Cost ($)", limits = c(5500,5800), breaks = seq(5500,5800,100))+
+  scale_x_continuous(name="Uncertainty",breaks = seq(0,0.9,0.1))+
+  theme_bw(base_family = "serif") + 
+  theme(panel.grid.minor=element_blank(),
+        axis.text.x = element_text(angle = 0, vjust = 0.5, size=15),
+        axis.title.x = element_text(size=18),
+        axis.title.y = element_text(size=18),
+        axis.text.y  = element_text(angle=0, vjust=0.5, size=15),
+        legend.position="none")+geom_line()
 
 tmp2<- sapply(1:length(waiting_coeffi), function(k) cost_function(result_waiting[[k]],waiting_coeffi = waiting_coeffi[[k]]))
 plot(waiting_coeffi,tmp2[3,])
@@ -696,13 +552,6 @@ plot(operat_coeffi,tmp3[3,])
 
 ```
 
-## Optimal Solution
-
-```{r}
-
-```
-
-
 
 
 
@@ -710,8 +559,8 @@ plot(operat_coeffi,tmp3[3,])
 
 ```{r}
 par(mfrow=c(1,1))
-plot(1:48/2,sapply(Xi,sum)+sapply(Phi,sum), ylab="Demand", xlab="Time")
-plot(1:48/2,sapply(A,sum)+sapply(Psi,sum), ylab="Supply", xlab="Time")
+plot(1:48/2,sapply(Xi,sum)+sapply(Phi,sum)+ sapply(Eta,sum), ylab="Demand", xlab="Time")
+plot(1:48/2,sapply(A,sum)+sapply(Psi,sum)+ sapply(B, sum), ylab="Supply", xlab="Time")
 plot(1:48/2,sapply(A,sum), ylab="Vacant taxis", xlab="Time")
 plot(1:48/2,sapply(Psi,sum), ylab="Arrival rate", xlab="Time")
 plot(1:48/2,sapply(A_delta,sum), ylab="Supply-Demand", xlab="Time")
@@ -720,6 +569,29 @@ plot(1:48/2,sapply(A_delta,sum), ylab="Supply-Demand", xlab="Time")
 minimum_zone <- sapply(1:48, function (i) sum(A_delta[[i]] - 0.1*(SD_Xi[[i]] + SD_Phi[[i]] + SD_Psi[[i]])))
 plot(1:48/2,minimum_zone, ylab="Required taxis", xlab="Time")
 abline(0,0)
+```
+
+#### Visualize Demand & Supply
+```{r}
+library(viridis)
+
+Demand_by_time <- data.frame(Time=Time, Demand=sapply(Xi,sum)+sapply(Phi,sum) + sapply(Eta,sum))
+Supply_by_time <- data.frame(Time=Time, Supply = sapply(A,sum)+sapply(Psi,sum) + sapply(B, sum))
+
+ggplot()+geom_point(data=Demand_by_time, aes(Time,Demand),col=viridis(10)[8], size=2)+
+  geom_line(data=Demand_by_time, aes(Time,Demand),col=viridis(10)[8])+
+  geom_line(data=Supply_by_time,aes(x=Time,y=Supply),col=viridis(10)[1])+
+  geom_point(data=Supply_by_time,aes(x=Time,y=Supply),col=viridis(10)[1],shape=17, size=2) +
+  scale_x_datetime(breaks = date_breaks("1 hour"), labels = date_format("%H:%M"))+
+  scale_y_continuous(name="Number of vehicles/passengers")+
+  theme_bw(base_family = "serif") + 
+  theme(panel.grid.minor=element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, size=15),
+        axis.title.x = element_text(size=18),
+        axis.title.y = element_text(size=18, vjust = 3),
+        axis.text.y  = element_text(angle=0, vjust=0.5, size=15),
+        legend.position="none")
+
 ```
 
 
