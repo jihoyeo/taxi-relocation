@@ -298,7 +298,7 @@ StreetTime[is.nan(StreetTime)] <- 999
 
 - Minimize the summation of total assigned time of passengers and operating cost
 
-#### Relocation function using GA
+#### Relocation function using GA!
 ```{r}
 relocation_function <- function (uncertain=0.1, waiting_coeffi=9.06, operat_coeffi=1.8, i=1,pmu=0.7,pcro=0.2){
   B_delta <- lapply(1:48, function (i) B[[i]] - Eta[[i]] - uncertain * SD_Eta[[i]]) 
