@@ -6,7 +6,6 @@ output: html_document
 ## Derive parameters
 
 - Read data
-
 ```{r}
 library(readr)
 library(dplyr)
