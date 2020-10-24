@@ -1,0 +1,83 @@
+---
+title: "Dashboard of MoD simulation"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+<style type="text/css">
+
+.chart-title {  /* chart_title  */
+   font-size: 20px;
+   font-family: Arial;
+
+</style>
+
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(plotly)
+library(dplyr)
+library(scales)
+library(latex2exp)
+library(viridis)
+
+
+# Load dataset
+load("G:/Research/(2019)_relocation_taxi/taxi-relocation/dashboard/vis_dat.RData")
+```
+
+
+
+
+
+Column {data-width=250}
+-----------------------------------------------------------------------
+
+### Without Relocation
+
+```{r}
+pl <- agg_vis_dat %>%
+  plot_ly(
+    x = ~X, 
+    y = ~Y, 
+    # size = ~pop, 
+    # color = ~state, 
+    # frame = ~time, 
+    text = ~paste('</br> VehicleID: ', VehicleID,
+                      '</br> State: ', state), 
+    hoverinfo = "text"
+  ) %>%
+  add_markers(color = ~factor(state),
+              colors = c(viridis(10)[2],viridis(10)[5],viridis(10)[10]),
+              frame = ~time) %>%
+  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
+
+pl
+```
+
+Column {data-width=250}
+-----------------------------------------------------------------------
+
+### With Inter-zonal Relocation
+
+```{r}
+pl2 <- agg_vis_dat[1:100,] %>%
+  plot_ly(
+    x = ~X, 
+    y = ~Y, 
+    # size = ~pop, 
+    # color = ~state, 
+    # frame = ~time, 
+    text = ~paste('</br> VehicleID: ', VehicleID,
+                      '</br> State: ', state), 
+    hoverinfo = "text"
+  ) %>%
+  add_markers(color = ~factor(state),
+              colors = c(viridis(10)[2],viridis(10)[5],viridis(10)[10]),
+              frame = ~time) %>%
+  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
+
+pl2
+```
