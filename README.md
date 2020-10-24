@@ -1,2 +1,2 @@
-# taxi-relocation
-implementation of genetic algorithm to relocate vacant taxis
+# AMoD-relocation
+Implementation of genetic algorithm to relocate idle vehicles in AMoD system
