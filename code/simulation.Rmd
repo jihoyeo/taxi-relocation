@@ -1,13 +1,25 @@
 ---
 title: "MoD Simulation in R"
-author: "Jiho Yeo & Sujin Lee"
+author: "Jiho Yeo, Sujin Lee and Jinwoo Lee"
 date: '2020 9 29 '
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+## Load libraries
+
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(sp)
+```
+
 
 ## Data Description 
 
@@ -15,17 +27,17 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r cars}
 # Passenger drop on, off data in Daejeon
-passen_final<-read_csv("data/passen_final.csv")
+passen_final<-read_csv("C:/Users/JH/Documents/taxi-relocation/data/passen_final.csv")
 
 # Median travel time between zones
-TravelTime<-read_csv("data/TravelTime.csv")
+TravelTime<-read_csv("C:/Users/JH/Documents/taxi-relocation/data/TravelTime.csv")
 
 # All passenger pick-up/drop-off in 3 months
 ### For derive standard deviation of demand
-passen_all<-read_csv("data/passen_all.csv")
+passen_all<-read_csv("C:/Users/JH/Documents/taxi-relocation/data/passen_all.csv")
 
 # Speed over zones by time
-speed_by_zone <- read.csv("data/speed_by_zone_time.csv")
+speed_by_zone <- read.csv("C:/Users/JH/Documents/taxi-relocation/data/speed_by_zone_time.csv")
 
 # 42 Grids
 ROI<-sort(c(61, 105, 136, 146, 154, 168, 184, 189, 190, 191, 194, 196, 199, 206, 225, 229, 230, 231, 233, 240, 241,
@@ -69,9 +81,6 @@ Time<-c(Time,Time + minutes(30)) %>% sort()
 
 # Length of grid (1km)
 L<-1
-
-# Road density by zones
-Rho<-road_length$LengthSum # Road density by grids
 
 N<-42 # Number of grids
 M<-5
@@ -288,7 +297,7 @@ VehiclePositionUpdater <- function (x_start,y_start,x_end,y_end, VehicleSpeed){
 
 
 #### Update Vehicle state in assigning(Assign >> Operation)
-- Assign 된 차량들의 위치를 time stamp마다 계속 업데이트
+- Assign 된 차량들의 위치를 timestamp마다 계속 업데이트
 - 승객의 위치까지 도달하면 vehicle state를 assign 에서 operation으로 변경
 
 ```{r}
@@ -306,9 +315,7 @@ Assign_to_Oprt <- function (AssignVehicle, time) {
   OprtVehicle[[time+1]]<<- Assign_tmp %>% filter(state=="operate")
 }
 
-Assign_to_Oprt(AssignVehicle,time=1)
-AssignVehicle[[2]]
-OprtVehicle[[2]]
+
 ```
 
 
@@ -379,8 +386,6 @@ agg_vis_dat <- rbind(agg_IdleVehicle, agg_AssignVehicle, agg_OprtVehicle)
 agg_vis_dat <- rbind(agg_vis_dat, data.frame(VehicleID=999,X=0,Y=0,state="operate",time=1))
 tmp <- agg_vis_dat %>% filter(time %in% 1200:1300)
 
-
-
 pl <- tmp %>%
   plot_ly(
     x = ~X, 
@@ -406,10 +411,24 @@ pl
 save(agg_vis_dat, file = "dashboard/vis_dat.RData")
 ```
 
+- Save the objects
+
+```{r}
+IdleVehicle_default <- IdleVehicle
+AssignVehicle_default <- AssignVehicle
+OprtVehicle_default <- OprtVehicle
+agg_vis_dat_default <- agg_vis_dat
+```
 
 ## Inter-zonal Repositioner (GA)
 - 매 30분마다, 각 존에서 다른 존으로 vehicle을 이동시킴
+- 이동시키는 Point는 존 안에 Random point로! 
 - 만약 보내야하는 차량의 수가 현재 존의 차량의 수보다 작다면 오는 순서대로 다른 존으로 보냄
+
+```{r}
+dff
+```
+
 
 
 ## Intra-zonal Repositioner (Hueristic)
@@ -429,6 +448,43 @@ save(agg_vis_dat, file = "dashboard/vis_dat.RData")
 ## Cost Calculator
 - 시뮬레이션이 작동함에 따라 total cost가 계산되도록 하는 모듈
 
+#### Assigned & waiting time cost
+
+```{r}
+CalculateAssignCost <- function(AssignVehicle){
+  tmp<-do.call(rbind,sapply(1:1440, function (k) AssignVehicle[[k]], simplify = FALSE))
+  # tmp2<-tmp %>% group_by(X_start,Y_start) %>% 
+  #   do(data.frame(start_x=.$X[1],start_y=.$Y[1],end_x=.$X_start[nrow(.)],end_y=.$Y_start[nrow(.)]))
+  # tmp2$travel_dist <- abs(tmp2$start_x-tmp2$end_x) + abs(tmp2$start_y-tmp2$end_y)
+  
+  # 분단위로 cost 계산 (1분에 차량속도만큼 움직였다고 가정)
+  tmp2 <- data.frame(table(tmp$time))
+  colnames(tmp2) <- c("time","total_assign_time")
+  
+  # 30분 단위로 표출
+  tmp2$time_30min <- trunc((as.numeric(tmp2$time)-1)/30)+1
+  tmp3 <- tmp2 %>% group_by(time_30min) %>% summarise(total_assign_time=sum(total_assign_time))
+  return(tmp3)
+}
+
+AssignCost_default<-CalculateAssignCost(AssignVehicle_default)
+```
+
+#### Relocation cost
+
+```{r}
+CalculateInterRelocationCost <- function(){
+  
+  
+}
+
+CalculateIntraRelocationCost <- function(){
+  
+  
+}
+
+```
+
 
 ## Get Parameter
 - 시뮬레이션이 작동됨에 따라 변하는 parameter들을 기록
@@ -436,7 +492,28 @@ save(agg_vis_dat, file = "dashboard/vis_dat.RData")
 
 ## Run Simulation with Relocation
 
+```{r}
+Run_Simulation<-function(relocation="none"){
+  IdleVehicle <- vector("list",1440)
+  OprtVehicle <- vector("list",1440)
+  AssignVehicle <- vector("list",1440)
+  ReloVehicle <- vector("list",1440)
+  
+  # Run simulation
+  for (i in 1:1439){
+  Dispacher(OD_Pairs, IdleVehicle, time=i)
+  Assign_to_Oprt(AssignVehicle,time=i)
+  Oprt_to_Idle(OprtVehicle,time=i)
+  }
 
+  # Modify time factor
+  for (i in 2:1440){
+    if (nrow(IdleVehicle[[i]])!=0) IdleVehicle[[i]]$time <- i
+    if (nrow(AssignVehicle[[i]])!=0) AssignVehicle[[i]]$time <- i
+    if (nrow(OprtVehicle[[i]])!=0) OprtVehicle[[i]]$time <- i
+    }
+}
+```
 
 
 
