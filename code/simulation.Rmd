@@ -882,6 +882,8 @@ set.seed(43)
 IdleVehicle <- vector("list",1440)
 OprtVehicle <- vector("list",1440)
 AssignVehicle <- vector("list",1440)
+InterReloVehicle <- vector("list",1440)
+IntraReloVehicle <- vector("list",1440)
 
 for (i in 1:1439){
   Dispatcher(OD_Pairs, IdleVehicle, time=i)
@@ -899,6 +901,11 @@ for (i in 2:1440){
 
 NumIdleVehicle <- sapply(1:1440,function(k) nrow(IdleVehicle[[k]]))
 plot(NumIdleVehicle, ylim=c(0,700))
+
+TotalNumVeh(1)
+TotalNumVeh(2)
+TotalNumVeh(3)
+TotalNumVeh(4)
 ```
 
 #### Visualization Vehicles & Passengers 
@@ -908,21 +915,10 @@ library(viridis)
 library(plotly)
 library(RColorBrewer)
 
-agg_IdleVehicle <- do.call(rbind,sapply(1:1440, function (k) IdleVehicle[[k]], simplify = FALSE))
-agg_IdleVehicle<-agg_IdleVehicle %>% select(VehicleID,X,Y,state,time)
-
-agg_AssignVehicle <- do.call(rbind,sapply(1:1440, function (k) AssignVehicle[[k]], simplify = FALSE))
-agg_AssignVehicle<-agg_AssignVehicle %>% select(VehicleID,X,Y,state,time)
-
-agg_OprtVehicle <- do.call(rbind,sapply(1:1440, function (k) OprtVehicle[[k]], simplify = FALSE))
-agg_OprtVehicle<-agg_OprtVehicle %>% select(VehicleID,X,Y,state,time)
-
 # Combine idle, assign, oprt vehicles into one dataframe
-agg_vis_dat <- rbind(agg_IdleVehicle, agg_AssignVehicle, agg_OprtVehicle)
+vis_dat_default <- MakeVisDat(type="no-relo")
 
-# plotly 시각화를 위해 빈차한대를 임의로 추가
-agg_vis_dat <- rbind(agg_vis_dat, data.frame(VehicleID=999,X=0,Y=0,state="operate",time=1))
-tmp <- agg_vis_dat %>% filter(time %in% 1200:1300)
+tmp <- vis_dat_default %>% filter(time %in% 1:100)
 
 pl <- tmp %>%
   plot_ly(
@@ -938,7 +934,7 @@ pl <- tmp %>%
   add_markers(color = ~factor(state),
               colors = c(viridis(10)[2],viridis(10)[5],viridis(10)[10]),
               frame = ~time) %>%
-  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
+  animation_opts(frame=100,transition = 0, easing = "linear", redraw = FALSE)
 
 pl
 ```
@@ -946,11 +942,11 @@ pl
 #### Save simulation result for visualization
 
 ```{r}
-save(agg_vis_dat, file = "dashboard/vis_dat.RData")
-tmp<-CoordChanger(agg_vis_dat %>% select(X,Y))
-agg_vis_dat_WGS <- cbind(agg_vis_dat, tmp)
-agg_vis_dat_WGS<- agg_vis_dat_WGS[-nrow(agg_vis_dat_WGS),]
-write.csv(agg_vis_dat_WGS,"data/agg_vis_dat_WGS.csv")
+save(vis_dat_default, file = "dashboard/vis_dat_default.RData")
+#tmp<-CoordChanger(agg_vis_dat %>% select(X,Y))
+#agg_vis_dat_WGS <- cbind(agg_vis_dat, tmp)
+#agg_vis_dat_WGS<- agg_vis_dat_WGS[-nrow(agg_vis_dat_WGS),]
+#write.csv(agg_vis_dat_WGS,"data/vis_dat_default_WGS.csv")
 ```
 
 - Save the objects with no relocation
