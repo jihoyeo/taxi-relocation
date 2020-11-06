@@ -945,25 +945,25 @@ InterReloTable <- vector("list",1440)
 
 for (i in 1:1439){
   Dispatcher(OD_Pairs, IdleVehicle, time=i)
-  # print(paste("Dispacher done at time",i))
+  print(paste("Dispacher done at time",i))
   
   Assign_to_Oprt(AssignVehicle,time=i)
-  # print(paste("Assign to Oprt done at time",i))
+  print(paste("Assign to Oprt done at time",i))
   
   Oprt_to_Idle(OprtVehicle,time=i)
-  # print(paste("Oprt to Idle done at time",i))
+  print(paste("Oprt to Idle done at time",i))
 
   # Calculate Inter-zonal Relocation Table at every 30-min (using GA)
   if((i-1)%%30==0) {
-    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator((i-1)/30+1,max_iter=1)
+    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator((i-1)/30+1,max_iter=100)
     InterReloTable[[i]]<-rbind(InterReloTable[[i]], ConvertTable(InterReloTableGA[[(i-1)/30+1]]))
     }
   
   InterZonalRepositioner(i)
-  # print(paste("Update Relocation table and vehicles at time",i))
+  print(paste("Update Relocation table and vehicles at time",i))
   
   InterRelo_to_Idle(InterReloVehicle,time=i)
-  # print(paste("Update Relocate to Idle at time",i))
+  print(paste("Update Relocate to Idle at time",i))
 }
 
 # Modify time factor
