@@ -138,7 +138,8 @@ Epsilon <- vector("list",48) # Travel time between zones
 
 # Vehicle Speed
 # 일단 15km/h로 고정
-VehicleSpeed <- 15*1000/60 # meters/min
+VehicleSpeed_km_h<-15
+VehicleSpeed <- VehicleSpeed_km_h*1000/60 # meters/min
 ```
 
 ## Passenger Generator
@@ -466,7 +467,8 @@ Rho<-0.5
 C_p <- 15.73 # unit waiting time cost per passenger ($/hr/px) 
 C_s <- 1.8 # unit operating time cost per vehicle ($/hr/veh)
 C_r <- C_s * 0.5 # operating cost in intra-zonal relocation in Strategy 1 
-
+uncertain <- 0.1 # Uncertainty of the demand and arrival rate 
+P_n <- vector("list",48) # Pre-determined number of pods at each zone
 ```
 
 - Calculate travel time betweeon zones
@@ -528,8 +530,7 @@ SD_Psi <- lapply(Psi,sqrt)
 ```
 
 
-
-- Density of idle vehicles (every 30-min)
+- Make random vehicles and distribute them into the region
 ```{r}
 InitialVehicle <- data.frame(VehicleID=1:700)
 InitialVehicle$X <- runif(nrow(InitialVehicle), min=0, max=7000)
@@ -552,11 +553,26 @@ RelocationTable <- Tau %>% filter(travel_time <= Xi, travel_time > 0) %>% filter
 ```
 
 - Inter-zonal Relocation function
+  - Three type of relocation
+    1. only inter-zonal relocation: inter-relo
+    2. Inter- and Intra-zonal relocation with Strategy 1 - intra_s1
+    3. 2. Inter- and Intra-zonal relocation with Strategy 2 - intra_s2
+  
 
 ```{r}
-RelocationTableCalculator <- function (i=1,pmu=0.7,pcro=0.2,max_iter=100){
+RelocationTableCalculator <- function (i=1,pmu=0.7,pcro=0.2,max_iter=100, type="inter-relo"){
+  # Derive the number of idle vehicles at time t and t+1
+  tmp<-OD_Pairs_tmp %>% group_by(dprt_grid,dprt_time_30min) %>% summarise(n=n())
+  tmp2<-data.frame(grid_id=rep(sort(ROI),each=48),time=Time)
+  tmp2 <-tmp2 %>% left_join(tmp, by=c("grid_id"="dprt_grid","time"="dprt_time_30min")) %>% arrange(time)
+  tmp2[is.na(tmp2$n),]$n<-0
+  
   A_tmp <- IdleVehicle[[(i-1)*30+1]] %>% group_by(grid_id) %>% arrange(grid_id) %>% summarise(n=n())
-  A[[i]]<<-A_tmp$n
+  A_tmp2<-data.frame(grid_id=rep(sort(ROI)))
+  A_tmp2 <-A_tmp2 %>% left_join(A_tmp, by=c("grid_id"))
+  A_tmp2[is.na(A_tmp2$n),]$n<-0
+  
+  A[[i]]<<-A_tmp2$n
   A_delta[[i]] <<- A[[i]] + Psi[[i]] - Phi[[i]] 
   
   f <- function(z){
@@ -574,21 +590,39 @@ RelocationTableCalculator <- function (i=1,pmu=0.7,pcro=0.2,max_iter=100){
   
   x<- in_out_flow$inflow-in_out_flow$outflow
   
-  # 7.05$/hour >> 3.5$/30min 
-  # or 18626won/hr >> 15.73$/hr >> 7.89$/30min
-  WaitTime <- (2^0.5)/(3*15)/((A_delta[[i]]+x)^0.5 + A[[i]]^0.5)
+  InterReloCost <- sum(RelocationTable$travel_time*abs(z))*C_s/60
+  
+  if (type=="nointra"){
+    IntraReloCost <-0
+    WaitTime <- (2^0.5)/(3*VehicleSpeed_km_h)/((A_delta[[i]]+x)^0.5 + A[[i]]^0.5)
+  } else if (type=="intra_s1"){
+    IntraReloCost <- sum((A[[i]]+A_delta[[i]]+x)/2*C_r*0.5)
+    WaitTime <- (2^0.5)/(3*VehicleSpeed_km_h)/((A_delta[[i]]+x)^0.5 + A[[i]]^0.5)
+  } else {
+    IntraReloCost <- sum((in_out_flow$inflow+Psi[[i]])*C_s*0.63/VehicleSpeed_km_h)
+    
+    # Derive the number of pods in Strategy 2
+    P_n[[i]] <- trunc((((A[[i]]+Psi[[i]]+x- Phi[[i]])/1.96)^2/Phi[[i]]+1))
+    
+    # 수요가 0인 zone은 pod의 갯수 1개로 고정
+    P_n[[i]][is.infinite(P_n[[i]])]<-1
+    
+    # Derive the wait time of passengers
+    WaitTime <- (2^0.5)/(3*15)/(P_n[[i]]^0.5)
+    
+  }
+  
   WaitTime[is.nan(WaitTime)]<-999
   WaitTime[is.infinite(WaitTime)]<-999
+  
+  # 7.05$/hour >> 3.5$/30min 
+  # or 18626won/hr >> 15.73$/hr >> 7.89$/30min
   PassengerCost <- sum(WaitTime*Phi[[i]]) * C_p # unit is '$'
   
   # 6km/liter >> 0.73$/liter >> 8.22km/$ >> 0.12$/km
   # speed: 30km/h >> 15km/30min >> 3.6$/hr
   AssignedCost <- sum(WaitTime*Phi[[i]])*C_s*Rho
-  
-  InterReloCost <- sum(RelocationTable$travel_time*abs(z))*C_s/60
-  
-  IntraReloCost <- sum((A[[i]]+A_delta[[i]]+x)/2*C_r*0.5)
-  
+    
   TotalCost<-PassengerCost + AssignedCost + InterReloCost + IntraReloCost
   return(TotalCost)
 }
@@ -611,7 +645,7 @@ cons <- function(z) {
   x<- in_out_flow$inflow-in_out_flow$outflow
   
   con<-0
-  zone_cons <- A_delta[[i]] - 0.1*(SD_Phi[[i]] + SD_Psi[[i]]) + x
+  zone_cons <- A_delta[[i]] - uncertain*(SD_Phi[[i]] + SD_Psi[[i]]) + x
   
   for (k in 1:42){
     con <- con + min(0,zone_cons[k])*1000000
@@ -647,7 +681,7 @@ cons <- function(z) {
   return(RelocationTable)
   }
 
-InterReloTableGA[[1]] <- RelocationTableCalculator(i=1)
+InterReloTableGA[[1]] <- RelocationTableCalculator(i=1,max_iter=20, type="intra_s2")
 ```
 
 - Cost function
@@ -955,7 +989,7 @@ for (i in 1:1439){
 
   # Calculate Inter-zonal Relocation Table at every 30-min (using GA)
   if((i-1)%%30==0) {
-    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator((i-1)/30+1,max_iter=100)
+    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator((i-1)/30+1,max_iter=1, type="inter-relo")
     InterReloTable[[i]]<-rbind(InterReloTable[[i]], ConvertTable(InterReloTableGA[[(i-1)/30+1]]))
     }
   
@@ -1090,32 +1124,166 @@ InterReloVehicle_inter_relo <- InterReloVehicle
 ```
 
 
+## Run Simulation with Inter- and Intra-zonal Relocation
+
+#### Strategy 1 - equally distributed
+```{r}
+set.seed(43)
+
+IdleVehicle <- vector("list",1440)
+OprtVehicle <- vector("list",1440)
+AssignVehicle <- vector("list",1440)
+InterReloVehicle <- vector("list",1440)
+
+InterReloTableGA <- vector("list",48)
+InterReloTable <- vector("list",1440)
+
+for (i in 1:1439){
+  Dispatcher(OD_Pairs, IdleVehicle, time=i)
+  # print(paste("Dispacher done at time",i))
+  
+  Assign_to_Oprt(AssignVehicle,time=i)
+  # print(paste("Assign to Oprt done at time",i))
+  
+  Oprt_to_Idle(OprtVehicle,time=i)
+  # print(paste("Oprt to Idle done at time",i))
+
+  # Calculate Inter-zonal Relocation Table at every 30-min (using GA)
+  if((i-1)%%30==0) {
+    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator((i-1)/30+1,max_iter=1)
+    InterReloTable[[i]]<-rbind(InterReloTable[[i]], ConvertTable(InterReloTableGA[[(i-1)/30+1]]))
+    }
+  
+  InterZonalRepositioner(i)
+  # print(paste("Update Relocation table and vehicles at time",i))
+  
+  InterRelo_to_Idle(InterReloVehicle,time=i)
+  # print(paste("Update Relocate to Idle at time",i))
+}
+
+# Modify time factor
+
+for (i in 2:1440){
+  if (nrow(IdleVehicle[[i]])!=0) IdleVehicle[[i]]$time <- i
+  if (nrow(AssignVehicle[[i]])!=0) AssignVehicle[[i]]$time <- i
+  if (nrow(OprtVehicle[[i]])!=0) OprtVehicle[[i]]$time <- i
+  if (!is.null(InterReloVehicle[[i]])) InterReloVehicle[[i]]$time <- i
+}
+
+#nrow(IdleVehicle[[10]])+nrow(AssignVehicle[[10]])+nrow(OprtVehicle[[10]])+nrow(InterReloVehicle[[10]])
+TotalNumVeh <- function(time){
+  print (paste("Idle is", nrow(IdleVehicle[[time]])))
+  print (paste("Assign is", nrow(AssignVehicle[[time]])))
+  print (paste("Oprt is", nrow(OprtVehicle[[time]])))
+  print (paste("Relocate is", nrow(InterReloVehicle[[time]])))
+  return(nrow(IdleVehicle[[time]])+
+           nrow(AssignVehicle[[time]])+
+           nrow(OprtVehicle[[time]])+
+           nrow(InterReloVehicle[[time]]))
+}
+
+nrow(IdleVehicle[[1]])+nrow(AssignVehicle[[1]])+nrow(InterReloVehicle[[1]])
+TotalNumVeh(1)
+TotalNumVeh(2)
+TotalNumVeh(3)
+TotalNumVeh(4)
+
+TotalNumVeh(500)
 
 
-## Run Simulation with Relocation
+
+#nrow(IdleVehicle[[3]])+nrow(AssignVehicle[[3]])+nrow(OprtVehicle[[3]])+nrow(InterReloVehicle[[3]])
+```
+
+#### Visualization Vehicles & Passengers 
 
 ```{r}
-Run_Simulation<-function(relocation="none"){
-  IdleVehicle <- vector("list",1440)
-  OprtVehicle <- vector("list",1440)
-  AssignVehicle <- vector("list",1440)
-  ReloVehicle <- vector("list",1440)
+library(viridis)
+library(plotly)
+library(RColorBrewer)
+MakeVisDat<- function(type="inter-relo"){
   
-  # Run simulation
-  for (i in 1:1439){
-  Dispacher(OD_Pairs, IdleVehicle, time=i)
-  Assign_to_Oprt(AssignVehicle,time=i)
-  Oprt_to_Idle(OprtVehicle,time=i)
-  }
+  agg_IdleVehicle <- do.call(rbind,sapply(1:1440, function (k) IdleVehicle[[k]], simplify = FALSE))
+  agg_IdleVehicle <-agg_IdleVehicle %>% select(VehicleID,X,Y,state,time)
 
-  # Modify time factor
-  for (i in 2:1440){
-    if (nrow(IdleVehicle[[i]])!=0) IdleVehicle[[i]]$time <- i
-    if (nrow(AssignVehicle[[i]])!=0) AssignVehicle[[i]]$time <- i
-    if (nrow(OprtVehicle[[i]])!=0) OprtVehicle[[i]]$time <- i
+  agg_AssignVehicle <- do.call(rbind,sapply(1:1440, function (k) AssignVehicle[[k]], simplify = FALSE))
+  agg_AssignVehicle<-agg_AssignVehicle %>% select(VehicleID,X,Y,state,time)
+
+  agg_OprtVehicle <- do.call(rbind,sapply(1:1440, function (k) OprtVehicle[[k]], simplify = FALSE))
+  agg_OprtVehicle<-agg_OprtVehicle %>% select(VehicleID,X,Y,state,time)
+
+  
+  if (type=="no-relo") {
+    # Combine idle, assign, oprt vehicles into one dataframe
+    agg_vis_dat <- rbind(agg_IdleVehicle, agg_AssignVehicle, agg_OprtVehicle)
+    
+    # plotly 시각화를 위해 빈차한대를 임의로 추가
+    agg_vis_dat <- rbind(agg_vis_dat, data.frame(VehicleID=999,X=0,Y=0,state="operate",time=1))
+    
+    return(agg_vis_dat)
+
+  }
+    
+  if (type=="inter-relo") {
+    agg_InterReloVehicle <- do.call(rbind,sapply(1:1440, function (k) InterReloVehicle[[k]], simplify = FALSE))
+    agg_InterReloVehicle<-agg_InterReloVehicle %>% select(VehicleID,X,Y,state,time)
+    
+    # Combine idle, assign, oprt vehicles into one dataframe
+    agg_vis_dat <- rbind(agg_IdleVehicle, agg_AssignVehicle, agg_OprtVehicle,agg_InterReloVehicle)
+    
+    # plotly 시각화를 위해 빈차한대를 임의로 추가
+    agg_vis_dat <- rbind(agg_vis_dat, data.frame(VehicleID=999,X=0,Y=0,state="operate",time=1))
+    
+    return(agg_vis_dat)
+  }
+    
+  if (type=="all-relo") { 
+    print("None")
     }
 }
+
+vis_dat_inter_relo <- MakeVisDat(type="inter-relo")
+
+tmp <- vis_dat_inter_relo %>% filter(time %in% 1:100)
+
+pl <- tmp %>%
+  plot_ly(
+    x = ~X, 
+    y = ~Y, 
+    # size = ~pop, 
+    # color = ~state, 
+    # frame = ~time, 
+    text = ~paste('</br> VehicleID: ', VehicleID,
+                      '</br> State: ', state), 
+    hoverinfo = "text"
+  ) %>%
+  add_markers(color = ~factor(state),
+              colors = viridis(4),
+              frame = ~time) %>%
+  animation_opts(frame=100,transition = 0, easing = "linear", redraw = FALSE)
+
+pl
 ```
+
+#### Save simulation result for visualization
+
+```{r}
+save(vis_dat_inter_relo, file = "dashboard/vis_dat_inter_relo.RData")
+# tmp<-CoordChanger(agg_vis_dat %>% select(X,Y))
+# agg_vis_dat_WGS <- cbind(agg_vis_dat, tmp)
+# agg_vis_dat_WGS<- agg_vis_dat_WGS[-nrow(agg_vis_dat_WGS),]
+# write.csv(agg_vis_dat_WGS,"data/agg_vis_dat_WGS.csv")
+```
+
+- Save the objects with only inter-relocation
+
+```{r}
+IdleVehicle_inter_relo <- IdleVehicle
+AssignVehicle_inter_relo <- AssignVehicle
+OprtVehicle_inter_relo <- OprtVehicle
+InterReloVehicle_inter_relo <- InterReloVehicle
+```
+
 
 
 
