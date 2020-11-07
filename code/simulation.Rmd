@@ -605,7 +605,10 @@ RelocationTableCalculator <- function (i=1,pmu=0.7,pcro=0.2,max_iter=100, type="
     P_n[[i]] <- trunc((((A[[i]]+Psi[[i]]+x- Phi[[i]])/1.96)^2/Phi[[i]]+1))
     
     # 수요가 0인 zone은 pod의 갯수 1개로 고정
-    P_n[[i]][is.infinite(P_n[[i]])]<-1
+    if (sum(is.infinite(P_n[[i]]))!=0) P_n[[i]][is.infinite(P_n[[i]])]<-1
+    
+    # Pod의 수가 현재 Idle vehicle 수보다는 작게
+    P_n[[i]][P_n[[i]]>A[[i]]] <- A[[i]][P_n[[i]]>A[[i]]]
     
     # Derive the wait time of passengers
     WaitTime <- (2^0.5)/(3*15)/(P_n[[i]]^0.5)
@@ -859,18 +862,28 @@ InterRelo_to_Idle <- function (InterReloVehicle, time) {
 - X pods들의 X,y 좌표가 리턴되는 함수
 ```{r}
 library(amap)
-# library(sqldf)
+library(sqldf)
 
-intra_pod <- function(k) {
-  x= as.data.frame(seq(from = 0, to = 1000, by = 1))
-  y= as.data.frame(seq(from = 0, to = 1000, by = 1))
-
-  p<-sqldf("SELECT x, y from x, y")
-  temp <- Kmeans(p, k, method = "manhattan")
-  pod<-as.data.frame(temp$center)
-
-  return(pod)
+PodCoord<-vector("list",50)
+p <- data.frame(x=rep(0:1000,each=1001), y =0:1000)
+PodCoord[[1]] <-data.frame(x=500,y=500)
+for (i in 11:50){
+  tmp <- Kmeans(p, centers=rbind(PodCoord[[i-1]],
+                                 data.frame(x=runif(1,0,1000),y=runif(1,0,1000))),
+                method = "manhattan",iter.max=50)
+  
+  PodCoord[[i]]<- as.data.frame(tmp$center) %>% arrange(x,y)
 }
+
+# intra_pod<-function(podnum) {
+#   # set.seed(43)
+#   p <- data.frame(x=rep(0:1000,each=1001), y =0:1000)
+#   tmp <- Kmeans(p, centers=podnum, method = "manhattan",iter.max=50)
+#   pod<-as.data.frame(tmp$center) %>% arrange(x,y)
+# 
+#   return(pod)
+# }
+
 ```
 
 #### Make the visualization data for plotly animation
@@ -978,7 +991,7 @@ pl <- tmp %>%
     hoverinfo = "text"
   ) %>%
   add_markers(color = ~factor(state),
-              colors = c(viridis(10)[2],viridis(10)[5],viridis(10)[10]),
+              # colors = c(viridis(10)[2],viridis(10)[5],viridis(10)[10]),
               frame = ~time) %>%
   animation_opts(frame=100,transition = 0, easing = "linear", redraw = FALSE)
 
@@ -1126,6 +1139,20 @@ vis_dat_inter_relo <- MakeVisDat(type="inter-relo")
 
 tmp <- vis_dat_inter_relo %>% filter(time %in% 1:100)
 
+#1f77b4 or rgb(31, 119, 180)  // muted blue
+#ff7f0e or rgb(255, 127, 14)  // safety orange
+#2ca02c or rgb(44, 160, 44)   // cooked asparagus green
+#d62728 or rgb(214, 39, 40)   // brick red
+#9467bd or rgb(148, 103, 189) // muted purple
+#8c564b or rgb(140, 86, 75)   // chestnut brown
+
+col_assign<-"#ff7f0e" # safety orange
+col_idle<-"#2ca02c" # cooked asparagus green
+col_inter<-"#9467bd" # muted purple
+col_oprt<- "#d62728" # brick red
+
+col_intra<-"#8c564b" # chestnut brown
+
 pl <- tmp %>%
   plot_ly(
     x = ~X, 
@@ -1138,7 +1165,7 @@ pl <- tmp %>%
     hoverinfo = "text"
   ) %>%
   add_markers(color = ~factor(state),
-              colors = viridis(4),
+              colors = c("#ff7f0e",viridis(4)[2:4]),
               frame = ~time) %>%
   animation_opts(frame=100,transition = 0, easing = "linear", redraw = FALSE)
 
@@ -1191,7 +1218,7 @@ for (i in 1:1439){
 
   # Calculate Inter-zonal Relocation Table at every 30-min (using GA)
   if((i-1)%%30==0) {
-    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator((i-1)/30+1,max_iter=1)
+    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator((i-1)/30+1,max_iter=100, type="inter-relo")
     InterReloTable[[i]]<-rbind(InterReloTable[[i]], ConvertTable(InterReloTableGA[[(i-1)/30+1]]))
     }
   
