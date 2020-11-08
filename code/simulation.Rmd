@@ -37,7 +37,7 @@ source('module/utils/PassengerGenerator.R')
 source('module/utils/ZoneIdentifier.R')
 
 # Make the visualization data for plotly animation
-source('module/utils/MakeVisDat')
+source('module/utils/MakeVisDat.R')
 
 # Calculate the number of vehicles at all states (idle;assign;oprt;etc)
 source('module/utils/TotalNumVeh.R')
