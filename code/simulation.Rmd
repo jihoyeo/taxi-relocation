@@ -501,7 +501,7 @@ InterReloVehicle <- vector("list",1440)
 InterReloTableGA <- vector("list",48)
 InterReloTable <- vector("list",1440)
 
-for (i in 1:1439){
+for (i in 270:1439){
   Dispatcher(OD_Pairs, IdleVehicle, time=i)
   print(paste("########## Dispacher done at time",i))
   
@@ -513,7 +513,7 @@ for (i in 1:1439){
 
   # Calculate Inter-zonal Relocation Table at every 30-min (using GA)
   if((i-1)%%30==0) {
-    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator((i-1)/30+1,max_iter=1, type="inter-relo")
+    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator((i-1)/30+1,max_iter=100, type="inter-relo")
     InterReloTable[[i]]<-rbind(InterReloTable[[i]], ConvertTable(InterReloTableGA[[(i-1)/30+1]]))
     }
   
