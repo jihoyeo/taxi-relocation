@@ -505,6 +505,10 @@ for (i in 1:1439){
   
   InterRelo_to_Idle(InterReloVehicle,time=i)
   print(paste("Update Relocate to Idle at time",i))
+  
+  TotalNumVeh(i)
+  print(paste("########## The simulation is done at time",i))
+  
 }
 
 # Modify time factor
