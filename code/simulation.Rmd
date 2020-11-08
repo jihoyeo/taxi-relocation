@@ -28,28 +28,28 @@ options(dplyr.summarise.inform = FALSE)
 ## Import modules
 ```{r}
 # 위경도/XY직각 좌표계 변환 함수
-source('utils/module/CoordChanger.R')
+source('module/utils/CoordChanger.R')
 
 # `passen_final_ROI`을 기반으로 randomly distributed 되게 승하차 좌표와 호출시간을 매핑
-source('utils/module/PassengerGenerator.R')
+source('module/utils/PassengerGenerator.R')
 
 # ZoneIdentifier (Detect zone id from X,y Coordinate)
-source('utils/module/ZoneIdentifier.R')
+source('module/utils/ZoneIdentifier.R')
 
 # Make the visualization data for plotly animation
-source('utils/module/MakeVisDat')
+source('module/utils/MakeVisDat')
 
 # Calculate the number of vehicles at all states (idle;assign;oprt;etc)
-source('utils/module/TotalNumVeh.R')
+source('module/utils/TotalNumVeh.R')
 
 # Vehicle Position Updater
-source('utils/module/VehiclePositionUpdater.R')
+source('module/utils/VehiclePositionUpdater.R')
 
 # Model Cost Calculator - calculate the total cost of the model
-source('utils/module/ModelCostCalculator.R')
+source('module/utils/ModelCostCalculator.R')
 
 # Convert GA Table to InterReloTable (there is no negative # of relo_vehicles in InterReloTable)
-source('utils/module/ConvertTable.R')
+source('module/utils/ConvertTable.R')
 
 # Dispatcher (Dispatch vehicle to passenger)
 source('module/Dispatcher.R')
