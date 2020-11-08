@@ -81,6 +81,10 @@ source('module/InterRelo_to_Idle.R')
 # IntraRelo_to_Idle
 source('module/IntraRelo_to_Idle.R')
 
+# Update Pod information in Strategy 2
+source('module/utils/PodInfoCalculator.R')
+source('module/utils/PodInfoUpdater.R')
+
 ```
 
 ## Data preprocessing
@@ -694,7 +698,7 @@ for (i in 1:1439){
   print(paste("Update Relocation table and vehicles at time",i))
   # TotalNumVeh(i)
   
-  IntraZonalRepositioner(i)
+  IntraZonalRepositioner(i, intra_type="intra_s1")
   print(paste("Update Intra-zonal to Idle at time",i))
   # TotalNumVeh(i)
   
@@ -791,9 +795,6 @@ InterReloTable <- vector("list",1440)
 
 PodInfo <- vector("list",1440)
 
-# PodInfoCalculator(P_n,PodCoord,time=1)
-# PodInfoCalculator(P_n,PodCoord,time=31)
-
 for (i in 1:1439){
   Dispatcher_intra_relo(OD_Pairs, IdleVehicle, time=i)
   print(paste("########## Dispacher done at time",i))
@@ -807,16 +808,17 @@ for (i in 1:1439){
 
   # Calculate Inter-zonal Relocation Table at every 30-min (using GA)
   if((i-1)%%30==0) {
-    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator_intra((i-1)/30+1,max_iter=1, type="intra_s1")
+    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator_intra((i-1)/30+1,max_iter=1, type="intra_s2")
     InterReloTable[[i]]<-rbind(InterReloTable[[i]], ConvertTable(InterReloTableGA[[(i-1)/30+1]]))
-    PodInfoCalculator(P_n,PodCoord,time==i) # Calculate pod information (e.g, number, location)
+    PodInfoCalculator(P_n,PodCoord,time=i) # Calculate pod information (e.g, number, location)
   }
   
   InterZonalRepositioner_intra(i)
   print(paste("Update Relocation table and vehicles at time",i))
   # TotalNumVeh(i)
   
-  IntraZonalRepositioner(i)
+  PodInfoUpdater(i)
+  IntraZonalRepositioner(i,intra_type="intra_s2")
   print(paste("Update Intra-zonal to Idle at time",i))
   # TotalNumVeh(i)
   
