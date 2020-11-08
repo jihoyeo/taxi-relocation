@@ -1,11 +1,13 @@
 # Idle & InterRelo & IntraRelo vehicle들로 IntraRelo Vehicle들의 목적지를 업데이트 (InterRelo & Idle >> IntraRelo)
 
-IntraZonalRepositioner<-function(i=1){
+IntraZonalRepositioner<-function(i=1, intra_type="intra_s1"){
   # Idle Vehicle
   idle_vehicle_tmp<-IdleVehicle[[i]]
   
   # InterRelo vehicle
+  if(is.null(InterReloVehicle[[i]])) InterReloVehicle[[i]] <<- InterReloVehicle[[1]][0,]
   inter_relo_vehicle_tmp<-InterReloVehicle[[i]]
+  
   if(!is.null(inter_relo_vehicle_tmp)) {
     if (nrow(inter_relo_vehicle_tmp)!=0){
       inter_relo_vehicle_tmp$grid_id <- ZoneIdentifier(inter_relo_vehicle_tmp)
@@ -24,7 +26,7 @@ IntraZonalRepositioner<-function(i=1){
   
   # Idle & InterRelo >> IntraRelo
   if(nrow(PoolVehicle)!=0) {
-    PoolVehicle_update <- IntraZonalPositionCalculator(PoolVehicle, type="intra_s1")
+    PoolVehicle_update <- IntraZonalPositionCalculator(PoolVehicle, type=intra_type)
     PoolVehicle_update$state <- "intra-relocate"} else {
       PoolVehicle_update<-PoolVehicle
       PoolVehicle_update$X_intra_relo<-NULL

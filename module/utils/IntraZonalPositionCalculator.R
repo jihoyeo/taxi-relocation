@@ -36,9 +36,52 @@ IntraZonalPositionCalculator <- function(PoolVehicle,type="intra_s1"){
       
       PoolVehicle_output <- rbind(PoolVehicle_output,PoolVehicle_tmp)} 
     
-    return(PoolVehicle_output)} else {
-    # Pod id를 만들고 pod의 차대수를 모니터링 해야함
-    # Pod사이의 차량수가 균형에 맞도록
+    return(PoolVehicle_output)} else if (type=="intra_s2"){
+      # Pod id를 만들고 pod의 차대수를 모니터링 해야함
+      # Pod사이의 차량수가 균형에 맞도록
+      num_pod_per_grid<-data.frame(grid_id=grid$dprt_grid,num_pod=P_n[[trunc((i-1)/30+1)]])
+      target_grid<-sort(unique(PoolVehicle$grid_id))
+
+      PoolVehicle_output<-NULL
+      
+      for (k in 1:length(target_grid)){
+        id_tmp<-target_grid[k]
+        PoolVehicle_tmp<- PoolVehicle %>% filter(grid_id==id_tmp)
+        num_pod_tmp <- num_pod_per_grid %>% filter(grid_id==id_tmp) %>% pull(num_pod)
+        
+        destination<-PodCoord[[num_pod_tmp]]
+        destination$x <-destination$x+ grid %>% filter(dprt_grid==id_tmp) %>% pull(X_lower_left)
+        destination$y <-destination$y+ grid %>% filter(dprt_grid==id_tmp) %>% pull(Y_lower_left)
+        destination$num_veh<-0 # pod에 할당되는 차량을 모니터링
+        destination$pod_id <- 1:nrow(destination)
+        
+        X_intra_relo<-NULL
+        Y_intra_relo<-NULL
+        
+        # Pod에 있는 차량의 수가 가장 적은곳으로 차를 보냄 >> pod에 있는 차량의 균형을 유지
+        # 여러 후보가 있으면 가장 가까운 곳으로 보냄
+        for (m in 1:nrow(PoolVehicle_tmp)){
+          min_num_pod <- min(destination$num_veh)
+          destination_tmp <- destination %>% filter(num_veh==min_num_pod)
+          vehicle_position_match <- which.min(abs(destination_tmp$x-PoolVehicle_tmp[m,]$X)+
+                                                abs(destination_tmp$y-PoolVehicle_tmp[m,]$Y))
+          
+          X_intra_tmp <- destination_tmp$x[vehicle_position_match]
+          Y_intra_tmp <- destination_tmp$y[vehicle_position_match]
+          
+          pod_id_tmp <- destination_tmp$pod_id[vehicle_position_match]
+          
+          destination[destination$pod_id==pod_id_tmp,]$num_veh <- destination[destination$pod_id==pod_id_tmp,]$num_veh+1
+          X_intra_relo<-c(X_intra_relo,X_intra_tmp)
+          Y_intra_relo<-c(Y_intra_relo,Y_intra_tmp)
+        }
+        PoolVehicle_tmp$X_intra_relo<-X_intra_relo
+        PoolVehicle_tmp$Y_intra_relo<-Y_intra_relo
+        
+        PoolVehicle_output <- rbind(PoolVehicle_output,PoolVehicle_tmp)} 
+      
+      return(PoolVehicle_output)    
+      
     print("Not Yet!!!")
   }
 }
