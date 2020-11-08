@@ -26,7 +26,7 @@ IntraZonalRepositioner<-function(i=1, intra_type="intra_s1"){
   
   # Idle & InterRelo >> IntraRelo
   if(nrow(PoolVehicle)!=0) {
-    PoolVehicle_update <- IntraZonalPositionCalculator(PoolVehicle, type=intra_type)
+    PoolVehicle_update <- IntraZonalPositionCalculator(PoolVehicle, type=intra_type,time=i)
     PoolVehicle_update$state <- "intra-relocate"} else {
       PoolVehicle_update<-PoolVehicle
       PoolVehicle_update$X_intra_relo<-NULL

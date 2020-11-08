@@ -2,7 +2,7 @@
 # 이 좌표값에 따라 차량들이 움직일 수 있도록
 # X_intra_relo; Y_intra_relo
 
-IntraZonalPositionCalculator <- function(PoolVehicle,type="intra_s1"){
+IntraZonalPositionCalculator <- function(PoolVehicle,type="intra_s1",time){
   if (type=="intra_s1"){
     num_pod_per_grid<-data.frame(table(PoolVehicle$grid_id))
     colnames(num_pod_per_grid)<-c("grid_id","num_pod")
@@ -39,21 +39,18 @@ IntraZonalPositionCalculator <- function(PoolVehicle,type="intra_s1"){
     return(PoolVehicle_output)} else if (type=="intra_s2"){
       # Pod id를 만들고 pod의 차대수를 모니터링 해야함
       # Pod사이의 차량수가 균형에 맞도록
-      num_pod_per_grid<-data.frame(grid_id=grid$dprt_grid,num_pod=P_n[[trunc((i-1)/30+1)]])
+      
+      num_pod_per_grid<-PodInfo[[time]]
       target_grid<-sort(unique(PoolVehicle$grid_id))
 
       PoolVehicle_output<-NULL
+      pod_info_update<-NULL
       
       for (k in 1:length(target_grid)){
         id_tmp<-target_grid[k]
         PoolVehicle_tmp<- PoolVehicle %>% filter(grid_id==id_tmp)
-        num_pod_tmp <- num_pod_per_grid %>% filter(grid_id==id_tmp) %>% pull(num_pod)
         
-        destination<-PodCoord[[num_pod_tmp]]
-        destination$x <-destination$x+ grid %>% filter(dprt_grid==id_tmp) %>% pull(X_lower_left)
-        destination$y <-destination$y+ grid %>% filter(dprt_grid==id_tmp) %>% pull(Y_lower_left)
-        destination$num_veh<-0 # pod에 할당되는 차량을 모니터링
-        destination$pod_id <- 1:nrow(destination)
+        destination<-num_pod_per_grid %>% filter(grid_id==id_tmp)
         
         X_intra_relo<-NULL
         Y_intra_relo<-NULL
@@ -78,8 +75,11 @@ IntraZonalPositionCalculator <- function(PoolVehicle,type="intra_s1"){
         PoolVehicle_tmp$X_intra_relo<-X_intra_relo
         PoolVehicle_tmp$Y_intra_relo<-Y_intra_relo
         
-        PoolVehicle_output <- rbind(PoolVehicle_output,PoolVehicle_tmp)} 
-      
+        pod_info_update <- rbind(pod_info_update,destination)
+        PoolVehicle_output <- rbind(PoolVehicle_output,PoolVehicle_tmp)
+      }
+      num_pod_per_grid[num_pod_per_grid$pod_id %in% pod_info_update$pod_id,]$num_veh<-num_pod_per_grid[num_pod_per_grid$pod_id %in% pod_info_update$pod_id,]$num_veh+pod_info_update$num_veh
+  
       return(PoolVehicle_output)    
       
     print("Not Yet!!!")
