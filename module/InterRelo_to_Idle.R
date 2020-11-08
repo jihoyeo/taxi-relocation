@@ -3,7 +3,7 @@
 # Relocation 목적지에 도달하면 Idle로 상태를 변경
 
 InterRelo_to_Idle <- function (InterReloVehicle, time) {
-  
+  if (is.null(InterReloVehicle[[time]])) InterReloVehicle[[time]] <<- InterReloVehicle[[1]][0,]
   # Exit if there is no relocated vehicles
   if (nrow(InterReloVehicle[[time]])==0){
     InterReloVehicle[[time+1]]<<- InterReloVehicle[[time]][0,]
