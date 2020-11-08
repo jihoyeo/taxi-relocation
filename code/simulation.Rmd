@@ -334,7 +334,7 @@ RelocationTable <- Tau %>% filter(travel_time <= Xi, travel_time > 0) %>% filter
 PodCoord<-vector("list",50)
 p <- data.frame(x=rep(0:1000,each=1001), y =0:1000)
 PodCoord[[1]] <-data.frame(x=500,y=500)
-for (i in 11:50){
+for (i in 2:50){
   tmp <- Kmeans(p, centers=rbind(PodCoord[[i-1]],
                                  data.frame(x=runif(1,0,1000),y=runif(1,0,1000))),
                 method = "manhattan",iter.max=50)
@@ -342,7 +342,7 @@ for (i in 11:50){
   PodCoord[[i]]<- as.data.frame(tmp$center) %>% arrange(x,y)
 }
 
-save(PodCoord, file = "data/PodCoord.RData")
+saveRDS(PodCoord, file = "data/PodCoord.rds")
 
 # intra_pod<-function(podnum) {
 #   # set.seed(43)
