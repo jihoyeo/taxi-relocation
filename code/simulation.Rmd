@@ -65,9 +65,12 @@ source('module/Oprt_to_Idle.R')
 source('module/RelocationTableCalculator.R')
 source('module/RelocationTableCalculator_intra.R')
 
-# InterZonalRepositioner (Idle & Relocate >> Assign)
+# InterZonalRepositioner (Idle & Relocate >> InterRelo)
 source('module/InterZonalRepositioner.R')
 source('module/InterZonalRepositioner_intra.R')
+
+# IntraZonalRepositioner (Idle & InterRelo & IntraRelo >> IntraRelo)
+source('module/IntraZonalRepositioner.R')
 
 # InterRelo_to_Idle
 source('module/InterRelo_to_Idle.R')
@@ -493,13 +496,13 @@ InterReloTable <- vector("list",1440)
 
 for (i in 1:1439){
   Dispatcher(OD_Pairs, IdleVehicle, time=i)
-  print(paste("Dispacher done at time",i))
+  print(paste("########## Dispacher done at time",i))
   
   Assign_to_Oprt(AssignVehicle,time=i)
-  print(paste("Assign to Oprt done at time",i))
+  print(paste("########## Assign to Oprt done at time",i))
   
   Oprt_to_Idle(OprtVehicle,time=i)
-  print(paste("Oprt to Idle done at time",i))
+  print(paste("########## Oprt to Idle done at time",i))
 
   # Calculate Inter-zonal Relocation Table at every 30-min (using GA)
   if((i-1)%%30==0) {
@@ -524,7 +527,7 @@ for (i in 2:1440){
   if (nrow(IdleVehicle[[i]])!=0) IdleVehicle[[i]]$time <- i
   if (nrow(AssignVehicle[[i]])!=0) AssignVehicle[[i]]$time <- i
   if (nrow(OprtVehicle[[i]])!=0) OprtVehicle[[i]]$time <- i
-  if (!is.null(InterReloVehicle[[i]])) InterReloVehicle[[i]]$time <- i
+  if (nrow(InterReloVehicle[[i]])!=0) InterReloVehicle[[i]]$time <- i
 }
 
 #nrow(IdleVehicle[[10]])+nrow(AssignVehicle[[10]])+nrow(OprtVehicle[[10]])+nrow(InterReloVehicle[[10]])
@@ -661,15 +664,15 @@ IntraReloVehicle <- vector("list",1440)
 InterReloTableGA <- vector("list",48)
 InterReloTable <- vector("list",1440)
 
-for (i in 173:1439){
+for (i in 1:1439){
   Dispatcher_intra_relo(OD_Pairs, IdleVehicle, time=i)
-  print(paste("Dispacher done at time",i))
+  print(paste("########## Dispacher done at time",i))
   
   Assign_to_Oprt(AssignVehicle,time=i)
-  print(paste("Assign to Oprt done at time",i))
+  print(paste("########## Assign to Oprt done at time",i))
   
   Oprt_to_Idle(OprtVehicle,time=i)
-  print(paste("Oprt to Idle done at time",i))
+  print(paste("########## Oprt to Idle done at time",i))
   # TotalNumVeh(i)
 
   # Calculate Inter-zonal Relocation Table at every 30-min (using GA)
@@ -705,34 +708,10 @@ for (i in 2:1440){
   if (nrow(IdleVehicle[[i]])!=0) IdleVehicle[[i]]$time <- i
   if (nrow(AssignVehicle[[i]])!=0) AssignVehicle[[i]]$time <- i
   if (nrow(OprtVehicle[[i]])!=0) OprtVehicle[[i]]$time <- i
-  if (!is.null(InterReloVehicle[[i]])) InterReloVehicle[[i]]$time <- i
+  if (nrow(InterReloVehicle[[i]])!=0) InterReloVehicle[[i]]$time <- i
+  if (nrow(IntraReloVehicle[[i]])!=0) IntraReloVehicle[[i]]$time <- i
 }
 
-#nrow(IdleVehicle[[10]])+nrow(AssignVehicle[[10]])+nrow(OprtVehicle[[10]])+nrow(InterReloVehicle[[10]])
-TotalNumVeh <- function(time){
-  print (paste("Idle is", nrow(IdleVehicle[[time]])))
-  print (paste("Assign is", nrow(AssignVehicle[[time]])))
-  print (paste("Oprt is", nrow(OprtVehicle[[time]])))
-  print (paste("Inter-Relocate is", nrow(InterReloVehicle[[time]])))
-  print (paste("Intra-Relocate is", nrow(IntraReloVehicle[[time]])))
-  return(nrow(IdleVehicle[[time]])+
-           nrow(AssignVehicle[[time]])+
-           nrow(OprtVehicle[[time]])+
-           nrow(InterReloVehicle[[time]])+
-           nrow(IntraReloVehicle[[time]]))
-}
-
-nrow(IdleVehicle[[1]])+nrow(AssignVehicle[[1]])+nrow(InterReloVehicle[[1]])
-TotalNumVeh(1)
-TotalNumVeh(2)
-TotalNumVeh(3)
-TotalNumVeh(4)
-
-TotalNumVeh(500)
-
-
-
-#nrow(IdleVehicle[[3]])+nrow(AssignVehicle[[3]])+nrow(OprtVehicle[[3]])+nrow(InterReloVehicle[[3]])
 ```
 
 #### Visualization Vehicles & Passengers 
@@ -769,7 +748,7 @@ pl
 #### Save simulation result for visualization
 
 ```{r}
-save(vis_dat_inter_relo, file = "dashboard/vis_dat_inter_relo.RData")
+save(vis_dat_intra_s1, file = "dashboard/vis_dat_intra_s1.RData")
 # tmp<-CoordChanger(agg_vis_dat %>% select(X,Y))
 # agg_vis_dat_WGS <- cbind(agg_vis_dat, tmp)
 # agg_vis_dat_WGS<- agg_vis_dat_WGS[-nrow(agg_vis_dat_WGS),]
@@ -779,10 +758,10 @@ save(vis_dat_inter_relo, file = "dashboard/vis_dat_inter_relo.RData")
 - Save the objects with only inter-relocation
 
 ```{r}
-IdleVehicle_inter_relo <- IdleVehicle
-AssignVehicle_inter_relo <- AssignVehicle
-OprtVehicle_inter_relo <- OprtVehicle
-InterReloVehicle_inter_relo <- InterReloVehicle
+IdleVehicle_intra_s1 <- IdleVehicle
+AssignVehicle_intra_s1 <- AssignVehicle
+OprtVehicle_intra_s1 <- OprtVehicle
+InterReloVehicle_intra_s1 <- InterReloVehicle
 ```
 
 ## Cost Calculator in Simulation
