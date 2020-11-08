@@ -14,6 +14,12 @@ RelocationTableCalculator_intra <- function (i=1,pmu=0.7,pcro=0.2,max_iter=100, 
   
   A_tmp <- IdleVehicle[[(i-1)*30+1]]
   if (!is.null(IntraReloVehicle[[(i-1)*30+1]])){
+    Intra_tmp <- IntraReloVehicle[[(i-1)*30+1]] %>% select(colnames(IdleVehicle[[1]]))
+    A_tmp <- rbind(A_tmp,Intra_tmp)
+  }
+  
+  
+  if (!is.null(IntraReloVehicle[[(i-1)*30+1]])){
     if (nrow(IntraReloVehicle[[(i-1)*30+1]]!=0)) {
       A_tmp <- rbind(IdleVehicle[[(i-1)*30+1]],IntraReloVehicle[[(i-1)*30+1]] %>% select(colnames(IdleVehicle[[(i-1)*30+1]])))}
   }
@@ -54,16 +60,18 @@ RelocationTableCalculator_intra <- function (i=1,pmu=0.7,pcro=0.2,max_iter=100, 
       IntraReloCost <- sum((in_out_flow$inflow+Psi[[i]])*C_s*0.63/VehicleSpeed_km_h)
       
       # Derive the number of pods in Strategy 2
-      P_n[[i]] <<- trunc((((A[[i]]+Psi[[i]]+x- Phi[[i]])/1.96)^2/Phi[[i]]+1))
+      pod <- trunc((((A[[i]]+Psi[[i]]+x- Phi[[i]])/1.96)^2/Phi[[i]]+1))
       
       # 수요가 0인 zone은 pod의 갯수 1개로 고정
-      if (sum(is.infinite(P_n[[i]]))!=0) P_n[[i]][is.infinite(P_n[[i]])]<<-1
+      if (sum(is.infinite(pod)!=0)) {pod[is.infinite(pod)]<-1}
+      if (sum(is.nan(pod)!=0)) {pod[is.nan(pod)]<-1}
       
-      # Pod의 수가 현재 Idle vehicle 수보다는 작게
-      P_n[[i]][P_n[[i]]>A[[i]]] <- A[[i]][P_n[[i]]>A[[i]]]
+      # pod수는 현재의 idle vehicle number보다 클 수 없음
+      if(sum(pod>A[[i]])!=0) pod[pod>A[[i]]] <- A[[i]][pod>A[[i]]]
+      if(sum(pod==0)!=0) pod[pod==0] <- 1
       
       # Derive the wait time of passengers
-      WaitTime <- (2^0.5)/(3*15)/(P_n[[i]]^0.5)
+      WaitTime <- (2^0.5)/(3*15)/(pod^0.5)
       
     }
     
@@ -132,6 +140,30 @@ RelocationTableCalculator_intra <- function (i=1,pmu=0.7,pcro=0.2,max_iter=100, 
   tmp<-summary(ga2)
   z_solution<-floor(tmp$solution[1,])
   RelocationTable$num_relo<-z_solution
+  
+  inflow<-RelocationTable %>% group_by(grid_end) %>% summarise(inflow=sum(num_relo))
+  outflow<-RelocationTable %>% group_by(grid_start) %>% summarise(outflow=sum(num_relo))
+  
+  in_out_flow<-grid %>% select(grid_id=dprt_grid) %>% arrange(grid_id)
+  colnames(inflow)[1]<-"grid_id"
+  colnames(outflow)[1]<-"grid_id"
+  in_out_flow <- in_out_flow %>% left_join(inflow,by="grid_id")
+  in_out_flow <- in_out_flow %>% left_join(outflow,by="grid_id")
+  in_out_flow[is.na(in_out_flow)]<-0
+  
+  x<- in_out_flow$inflow-in_out_flow$outflow
+  
+  # Derive the number of pods in Strategy 2
+  pod <- trunc((((A[[i]]+Psi[[i]]+x- Phi[[i]])/1.96)^2/Phi[[i]]+1))
+  
+  # 수요가 0인 zone은 pod의 갯수 1개로 고정
+  if (sum(is.infinite(pod)!=0)) pod[is.infinite(pod)]<-1
+  if (sum(is.nan(pod)!=0)) pod[is.nan(pod)]<-1
+  
+  if(sum(pod>A[[i]])!=0) pod[pod>A[[i]]] <- A[[i]][pod>A[[i]]]
+  if(sum(pod==0)!=0) pod[pod==0] <- 1
+  
+  P_n[[i]]<<-pod
   
   return(RelocationTable)
 }
