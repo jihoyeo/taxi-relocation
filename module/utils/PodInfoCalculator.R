@@ -21,7 +21,7 @@ PodInfoCalculator <- function (P_n,PodCoord,time){
   PodInfo_tmp$pod_id<-1:nrow(PodInfo_tmp)
   
   PodInfo[[time]] <<- PodInfo_tmp
-  for (i in (time+1):(time+29)) PodInfo[[i]] <<- PodInfo[[time]][0,]
+  for (i in (time+1):(time+29)) PodInfo[[i]] <<- PodInfo[[time]]
   
 }
 
