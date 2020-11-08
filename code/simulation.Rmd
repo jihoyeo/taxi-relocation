@@ -28,20 +28,32 @@ options(dplyr.summarise.inform = FALSE)
 ## Import modules
 ```{r}
 # 위경도/XY직각 좌표계 변환 함수
-source('module/CoordChanger.R')
+source('utils/module/CoordChanger.R')
 
 # `passen_final_ROI`을 기반으로 randomly distributed 되게 승하차 좌표와 호출시간을 매핑
-source('module/PassengerGenerator.R')
+source('utils/module/PassengerGenerator.R')
 
 # ZoneIdentifier (Detect zone id from X,y Coordinate)
-source('module/ZoneIdentifier.R')
+source('utils/module/ZoneIdentifier.R')
+
+# Make the visualization data for plotly animation
+source('utils/module/MakeVisDat')
+
+# Calculate the number of vehicles at all states (idle;assign;oprt;etc)
+source('utils/module/TotalNumVeh.R')
+
+# Vehicle Position Updater
+source('utils/module/VehiclePositionUpdater.R')
+
+# Model Cost Calculator - calculate the total cost of the model
+source('utils/module/ModelCostCalculator.R')
+
+# Convert GA Table to InterReloTable (there is no negative # of relo_vehicles in InterReloTable)
+source('utils/module/ConvertTable.R')
 
 # Dispatcher (Dispatch vehicle to passenger)
 source('module/Dispatcher.R')
 source('module/Dispatcher_intra_relo.R')
-
-# Vehicle Position Updater
-source('module/VehiclePositionUpdater.R')
 
 #Assign_to_Oprt - Update Vehicle state in assigning(Assign >> Operation)
 source('module/Assign_to_Oprt.R')
@@ -51,24 +63,19 @@ source('module/Oprt_to_Idle.R')
 
 # Relocation Table Calculator
 source('module/RelocationTableCalculator.R')
-
-# Model Cost Calculator - calculate the total cost of the model
-source('module/ModelCostCalculator.R')
-
-# Convert GA Table to InterReloTable (there is no negative # of relo_vehicles in InterReloTable)
-source('module/ConvertTable.R')
+source('module/RelocationTableCalculator_intra.R')
 
 # InterZonalRepositioner (Idle & Relocate >> Assign)
 source('module/InterZonalRepositioner.R')
+source('module/InterZonalRepositioner_intra.R')
 
-# InterRelo_to_Idle - Utilize when only doing inter-zonal relocation
+# InterRelo_to_Idle
 source('module/InterRelo_to_Idle.R')
 
-# Make the visualization data for plotly animation
-source('module/MakeVisDat')
+# IntraRelo_to_Idle
+source('module/IntraRelo_to_Idle.R')
 
-# Calculate the number of vehicles at all states (idle;assign;oprt;etc)
-source('module/TotalNumVeh.R')
+
 ```
 
 ## Data preprocessing
@@ -777,11 +784,6 @@ AssignVehicle_inter_relo <- AssignVehicle
 OprtVehicle_inter_relo <- OprtVehicle
 InterReloVehicle_inter_relo <- InterReloVehicle
 ```
-
-
-
-
-
 
 ## Cost Calculator in Simulation
 - 시뮬레이션이 작동함에 따라 total cost가 계산되도록 하는 모듈
