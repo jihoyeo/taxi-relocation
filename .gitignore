@@ -3,4 +3,5 @@
 .Ruserdata
 .RData
 *.html
-dashboard/*.html
+./dashboard/*.html
+*.RData
