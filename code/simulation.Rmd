@@ -653,8 +653,8 @@ IdleVehicle_inter_relo <- IdleVehicle
 AssignVehicle_inter_relo <- AssignVehicle
 OprtVehicle_inter_relo <- OprtVehicle
 InterReloVehicle_inter_relo <- InterReloVehicle
-A_inter_relo
-A_delta_inter_relo
+A_inter_relo <- A
+A_delta_inter_relo <- A_delta
 ```
 
 
