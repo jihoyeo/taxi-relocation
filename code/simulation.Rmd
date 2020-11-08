@@ -342,6 +342,8 @@ for (i in 11:50){
   PodCoord[[i]]<- as.data.frame(tmp$center) %>% arrange(x,y)
 }
 
+save(PodCoord, file = "data/PodCoord.RData")
+
 # intra_pod<-function(podnum) {
 #   # set.seed(43)
 #   p <- data.frame(x=rep(0:1000,each=1001), y =0:1000)
