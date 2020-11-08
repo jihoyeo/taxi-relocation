@@ -39,6 +39,19 @@ MakeVisDat<- function(type="inter-relo"){
   }
   
   if (type=="inter-intra-relo") { 
-    print("None")
+    agg_InterReloVehicle <- do.call(rbind,sapply(1:1440, function (k) InterReloVehicle[[k]], simplify = FALSE))
+    agg_InterReloVehicle<-agg_InterReloVehicle %>% select(VehicleID,X,Y,state,time)
+    
+    agg_IntraReloVehicle <- do.call(rbind,sapply(1:1440, function (k) IntraReloVehicle[[k]], simplify = FALSE))
+    agg_IntraReloVehicle<-agg_IntraReloVehicle %>% select(VehicleID,X,Y,state,time)
+    
+    # Combine idle, assign, oprt vehicles into one dataframe
+    agg_vis_dat <- rbind(agg_IdleVehicle, agg_AssignVehicle, agg_OprtVehicle,agg_InterReloVehicle,agg_IntraReloVehicle)
+    
+    # plotly 시각화를 위해 빈차한대를 임의로 추가
+    agg_vis_dat <- rbind(agg_vis_dat, data.frame(VehicleID=999,X=0,Y=0,state="operate",time=1))
+    agg_vis_dat <- rbind(agg_vis_dat, data.frame(VehicleID=1000,X=0,Y=0,state="idle",time=1))
+    
+    return(agg_vis_dat)
   }
 }

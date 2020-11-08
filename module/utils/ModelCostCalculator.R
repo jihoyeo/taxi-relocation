@@ -1,8 +1,10 @@
-ModelCostCalculator <- function(z,i=1){
+ModelCostCalculator <- function(decision,i=1){
   # Relative # of vehicles at each zone
-  RelocationTable$num_relo<-z
+  RelocationTable$num_relo<-decision
   inflow<-RelocationTable %>% group_by(grid_end) %>% summarise(inflow=sum(num_relo))
   outflow<-RelocationTable %>% group_by(grid_start) %>% summarise(outflow=sum(num_relo))
+  
+  
   
   in_out_flow<-grid %>% select(grid_id=dprt_grid) %>% arrange(grid_id)
   colnames(inflow)[1]<-"grid_id"
