@@ -75,11 +75,8 @@ IntraZonalPositionCalculator <- function(PoolVehicle,type="intra_s1",time){
         PoolVehicle_tmp$X_intra_relo<-X_intra_relo
         PoolVehicle_tmp$Y_intra_relo<-Y_intra_relo
         
-        pod_info_update <- rbind(pod_info_update,destination)
         PoolVehicle_output <- rbind(PoolVehicle_output,PoolVehicle_tmp)
       }
-      num_pod_per_grid[num_pod_per_grid$pod_id %in% pod_info_update$pod_id,]$num_veh<-num_pod_per_grid[num_pod_per_grid$pod_id %in% pod_info_update$pod_id,]$num_veh+pod_info_update$num_veh
-  
       return(PoolVehicle_output)    
       
     print("Not Yet!!!")
