@@ -40,7 +40,7 @@ col_oprt <-viridis(4)[4]
 col_inter <-viridis(4)[3]
 col_intra <-viridis(4)[1]
 
-col_intra <-"#d62728"
+# col_intra <-"#d62728"
 
 
 
@@ -49,6 +49,8 @@ load("C:/Users/User/Documents/research/taxi-relocation/dashboard/vis_dat_default
 load("C:/Users/User/Documents/research/taxi-relocation/dashboard/vis_dat_inter_relo.RData")
 load("C:/Users/User/Documents/research/taxi-relocation/dashboard/vis_dat_intra_s1.RData")
 load("C:/Users/User/Documents/research/taxi-relocation/dashboard/vis_dat_intra_s2.RData")
+
+
 ```
 
 
@@ -56,13 +58,13 @@ load("C:/Users/User/Documents/research/taxi-relocation/dashboard/vis_dat_intra_s
 Without-relocation vs Inter-relocation
 =======================================================================
 
-Column {data-width=250}
+Column {data-width=200}
 -----------------------------------------------------------------------
 
 ### Without Relocation
 
 ```{r}
-pl <- vis_dat_default %>%
+pl <- vis_dat_default %>% filter(time==1) %>%
   plot_ly(
     x = ~X, 
     y = ~Y, 
@@ -76,18 +78,38 @@ pl <- vis_dat_default %>%
   add_markers(color = ~factor(state),
               colors = c(col_assign,col_idle,col_oprt),
               frame = ~time) %>%
-  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
+  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE) %>%
+  layout(legend = list(orientation = "h",   # show entries horizontally
+                     xanchor = "center",  # use center of legend as anchor
+                     x = 0.5),
+         autosize = F, width = 600, height = 600,
+         xaxis = list(title = "",
+                      ticktext = list(0,1,2,3,4,5,6,7), 
+                      tickvals = list(0,1000,2000,3000,4000,5000,6000,7000),
+                      tickmode = "array",
+                      mirror = "ticks",
+                      range = c(0, 7000),
+                      gridcolor = "grey80",
+                      showline = TRUE),
+         yaxis = list(title = "",
+                      ticktext = list(0,1,2,3,4,5,6), 
+                      tickvals = list(0,1000,2000,3000,4000,5000,6000),
+                      tickmode = "array",
+                      mirror = "ticks",
+                      range = c(0, 6000),
+                      gridcolor = "grey80",
+                      showline = TRUE))
 
 pl
 ```
 
-Column {data-width=250}
+Column {data-width=200}
 -----------------------------------------------------------------------
 
 ### With Inter-zonal Relocation
 
 ```{r}
-pl2 <- vis_dat_inter_relo %>%
+pl2 <- vis_dat_inter_relo %>% filter(time==1) %>%
   plot_ly(
     x = ~X, 
     y = ~Y, 
@@ -101,21 +123,38 @@ pl2 <- vis_dat_inter_relo %>%
   add_markers(color = ~factor(state),
               colors = c(col_assign,col_idle,col_inter,col_oprt),
               frame = ~time) %>%
-  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
+  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE) %>%
+  layout(legend = list(orientation = "h",   # show entries horizontally
+                     xanchor = "center",  # use center of legend as anchor
+                     x = 0.5),
+         autosize = F, width = 600, height = 600,
+         xaxis = list(title = "",
+                      ticktext = list(0,1,2,3,4,5,6,7), 
+                      tickvals = list(0,1000,2000,3000,4000,5000,6000,7000),
+                      tickmode = "array",
+                      mirror = "ticks",
+                      range = c(0, 7000),
+                      gridcolor = "grey80",
+                      showline = TRUE),
+         yaxis = list(title = "",
+                      ticktext = list(0,1,2,3,4,5,6), 
+                      tickvals = list(0,1000,2000,3000,4000,5000,6000),
+                      tickmode = "array",
+                      mirror = "ticks",
+                      range = c(0, 6000),
+                      gridcolor = "grey80",
+                      showline = TRUE))
 
 pl2
 ```
 
-Intra-relocation: S1 vs S2
-=======================================================================
-
-Column {data-width=250}
+Column {data-width=200}
 -----------------------------------------------------------------------
 
 ### Without Relocation
 
 ```{r}
-pl3 <- vis_dat_intra_s1 %>%
+pl3 <- vis_dat_intra_s1 %>% filter(time==1) %>%
   plot_ly(
     x = ~X, 
     y = ~Y, 
@@ -129,32 +168,27 @@ pl3 <- vis_dat_intra_s1 %>%
   add_markers(color = ~factor(state),
               colors = c(col_assign,col_idle,col_inter,col_intra,col_oprt),
               frame = ~time) %>%
-  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
+  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE) %>%
+  layout(legend = list(orientation = "h",   # show entries horizontally
+                     xanchor = "center",  # use center of legend as anchor
+                     x = 0.5),
+         autosize = F, width = 600, height = 600,
+         xaxis = list(title = "",
+                      ticktext = list(0,1,2,3,4,5,6,7), 
+                      tickvals = list(0,1000,2000,3000,4000,5000,6000,7000),
+                      tickmode = "array",
+                      mirror = "ticks",
+                      range = c(0, 7000),
+                      gridcolor = "grey80",
+                      showline = TRUE),
+         yaxis = list(title = "",
+                      ticktext = list(0,1,2,3,4,5,6), 
+                      tickvals = list(0,1000,2000,3000,4000,5000,6000),
+                      tickmode = "array",
+                      mirror = "ticks",
+                      range = c(0, 6000),
+                      gridcolor = "grey80",
+                      showline = TRUE))
 
 pl3
-```
-
-Column {data-width=250}
------------------------------------------------------------------------
-
-### With Inter-zonal Relocation
-
-```{r}
-pl4 <- vis_dat_intra_s2 %>%
-  plot_ly(
-    x = ~X, 
-    y = ~Y, 
-    # size = ~pop, 
-    # color = ~state, 
-    # frame = ~time, 
-    text = ~paste('</br> VehicleID: ', VehicleID,
-                      '</br> State: ', state), 
-    hoverinfo = "text"
-  ) %>%
-  add_markers(color = ~factor(state),
-              colors = c(col_assign,col_idle,col_inter,col_intra,col_oprt),
-              frame = ~time) %>%
-  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
-
-pl4
 ```

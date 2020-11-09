@@ -4,4 +4,5 @@
 .RData
 *.html
 ./dashboard/*.html
+./dashboard/Dashboard_of_simulation.html
 *.RData

@@ -487,8 +487,8 @@ IdleVehicle_default <- IdleVehicle
 AssignVehicle_default <- AssignVehicle
 OprtVehicle_default <- OprtVehicle
 agg_vis_dat_default <- agg_vis_dat
-A_default
-A_delta_default
+A_default <- A
+A_delta_default <- A_delta
 ```
 
 
@@ -505,7 +505,7 @@ InterReloVehicle <- vector("list",1440)
 InterReloTableGA <- vector("list",48)
 InterReloTable <- vector("list",1440)
 
-for (i in 270:1439){
+for (i in 1:1439){
   Dispatcher(OD_Pairs, IdleVehicle, time=i)
   print(paste("########## Dispacher done at time",i))
   
@@ -562,46 +562,6 @@ TotalNumVeh(500)
 library(viridis)
 library(plotly)
 library(RColorBrewer)
-MakeVisDat<- function(type="inter-relo"){
-  
-  agg_IdleVehicle <- do.call(rbind,sapply(1:1440, function (k) IdleVehicle[[k]], simplify = FALSE))
-  agg_IdleVehicle <-agg_IdleVehicle %>% select(VehicleID,X,Y,state,time)
-
-  agg_AssignVehicle <- do.call(rbind,sapply(1:1440, function (k) AssignVehicle[[k]], simplify = FALSE))
-  agg_AssignVehicle<-agg_AssignVehicle %>% select(VehicleID,X,Y,state,time)
-
-  agg_OprtVehicle <- do.call(rbind,sapply(1:1440, function (k) OprtVehicle[[k]], simplify = FALSE))
-  agg_OprtVehicle<-agg_OprtVehicle %>% select(VehicleID,X,Y,state,time)
-
-  
-  if (type=="no-relo") {
-    # Combine idle, assign, oprt vehicles into one dataframe
-    agg_vis_dat <- rbind(agg_IdleVehicle, agg_AssignVehicle, agg_OprtVehicle)
-    
-    # plotly 시각화를 위해 빈차한대를 임의로 추가
-    agg_vis_dat <- rbind(agg_vis_dat, data.frame(VehicleID=999,X=0,Y=0,state="operate",time=1))
-    
-    return(agg_vis_dat)
-
-  }
-    
-  if (type=="inter-relo") {
-    agg_InterReloVehicle <- do.call(rbind,sapply(1:1440, function (k) InterReloVehicle[[k]], simplify = FALSE))
-    agg_InterReloVehicle<-agg_InterReloVehicle %>% select(VehicleID,X,Y,state,time)
-    
-    # Combine idle, assign, oprt vehicles into one dataframe
-    agg_vis_dat <- rbind(agg_IdleVehicle, agg_AssignVehicle, agg_OprtVehicle,agg_InterReloVehicle)
-    
-    # plotly 시각화를 위해 빈차한대를 임의로 추가
-    agg_vis_dat <- rbind(agg_vis_dat, data.frame(VehicleID=999,X=0,Y=0,state="operate",time=1))
-    
-    return(agg_vis_dat)
-  }
-    
-  if (type=="all-relo") { 
-    print("None")
-    }
-}
 
 vis_dat_inter_relo <- MakeVisDat(type="inter-relo")
 
@@ -780,6 +740,7 @@ IntraReloVehicle_intra_s1 <- IntraReloVehicle
 A_intra_s1 <- A
 A_delta_intra_s1 <- A_delta
 InterReloTableGA_intra_s1 <- InterReloTableGA
+
 ```
 
 #### Strategy 2 - static condition
@@ -961,8 +922,6 @@ qplot(time_30min,total_assign_time,data=AssignCost_inter_relo,geom="line")+ylim(
 
 
 CalculateIntraRelocationCost <- function(){
-  
-  
 }
 
 ```
