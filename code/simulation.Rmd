@@ -969,5 +969,6 @@ CalculateIntraRelocationCost <- function(){
 - Cost function
 
 ```{r}
-ModelCostCalculator(InterReloTableGA[[1]]$num_relo)
+ModelCost_intra_s2 <-
+  do.call(rbind,lapply(1:48, function(k) ModelCostCalculator(InterReloTableGA[[k]]$num_relo,i=1,type="intra_s2")))
 ```
