@@ -337,10 +337,10 @@ RelocationTable <- Tau %>% filter(travel_time <= Xi, travel_time > 0) %>% filter
 - X pods들의 X,y 좌표를 계산
 
 ```{r}
-PodCoord<-vector("list",80)
+PodCoord<-vector("list",100)
 p <- data.frame(x=rep(0:1000,each=1001), y =0:1000)
 PodCoord[[1]] <-data.frame(x=500,y=500)
-for (i in 2:80){
+for (i in 2:100){
   tmp <- Kmeans(p, centers=rbind(PodCoord[[i-1]],
                                  data.frame(x=runif(1,0,1000),y=runif(1,0,1000))),
                 method = "manhattan",iter.max=50)

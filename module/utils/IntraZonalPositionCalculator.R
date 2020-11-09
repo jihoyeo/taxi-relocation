@@ -78,7 +78,5 @@ IntraZonalPositionCalculator <- function(PoolVehicle,type="intra_s1",time){
         PoolVehicle_output <- rbind(PoolVehicle_output,PoolVehicle_tmp)
       }
       return(PoolVehicle_output)    
-      
-    print("Not Yet!!!")
   }
 }
