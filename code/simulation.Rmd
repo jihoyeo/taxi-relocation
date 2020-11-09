@@ -659,6 +659,7 @@ OprtVehicle_inter_relo <- OprtVehicle
 InterReloVehicle_inter_relo <- InterReloVehicle
 A_inter_relo <- A
 A_delta_inter_relo <- A_delta
+InterReloTableGA_inter_relo <- InterReloTableGA
 ```
 
 
@@ -690,7 +691,7 @@ for (i in 1:1439){
 
   # Calculate Inter-zonal Relocation Table at every 30-min (using GA)
   if((i-1)%%30==0) {
-    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator_intra((i-1)/30+1,max_iter=1, type="intra_s1")
+    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator_intra((i-1)/30+1,max_iter=100, type="intra_s1")
     InterReloTable[[i]]<-rbind(InterReloTable[[i]], ConvertTable(InterReloTableGA[[(i-1)/30+1]]))
     }
   
@@ -778,6 +779,7 @@ InterReloVehicle_intra_s1 <- InterReloVehicle
 IntraReloVehicle_intra_s1 <- IntraReloVehicle
 A_intra_s1 <- A
 A_delta_intra_s1 <- A_delta
+InterReloTableGA_intra_s1 <- InterReloTableGA
 ```
 
 #### Strategy 2 - static condition
@@ -808,7 +810,7 @@ for (i in 1:1439){
 
   # Calculate Inter-zonal Relocation Table at every 30-min (using GA)
   if((i-1)%%30==0) {
-    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator_intra((i-1)/30+1,max_iter=1, type="intra_s2")
+    InterReloTableGA[[(i-1)/30+1]] <- RelocationTableCalculator_intra((i-1)/30+1,max_iter=100, type="intra_s2")
     InterReloTable[[i]]<-rbind(InterReloTable[[i]], ConvertTable(InterReloTableGA[[(i-1)/30+1]]))
     PodInfoCalculator(P_n,PodCoord,time=i) # Calculate pod information (e.g, number, location)
   }
@@ -855,9 +857,9 @@ library(plotly)
 library(RColorBrewer)
 
 
-vis_dat_inter_relo <- MakeVisDat(type="inter-intra-relo")
+vis_dat_intra_s2 <- MakeVisDat(type="inter-intra-relo")
 
-tmp <- vis_dat_inter_relo %>% filter(time %in% 1:100)
+tmp <- vis_dat_intra_s2 %>% filter(time %in% 1:600)
 
 pl <- tmp %>%
   plot_ly(
@@ -881,7 +883,7 @@ pl
 #### Save simulation result for visualization
 
 ```{r}
-save(vis_dat_intra_s1, file = "dashboard/vis_dat_intra_s1.RData")
+save(vis_dat_intra_s2, file = "dashboard/vis_dat_intra_s2.RData")
 # tmp<-CoordChanger(agg_vis_dat %>% select(X,Y))
 # agg_vis_dat_WGS <- cbind(agg_vis_dat, tmp)
 # agg_vis_dat_WGS<- agg_vis_dat_WGS[-nrow(agg_vis_dat_WGS),]
@@ -897,6 +899,7 @@ OprtVehicle_intra_s2 <- OprtVehicle
 InterReloVehicle_intra_s2 <- InterReloVehicle
 A_intra_s2 <- A
 A_delta_intra_s2 <- A_delta
+InterReloTableGA_intra_s2 <- InterReloTableGA
 ```
 
 

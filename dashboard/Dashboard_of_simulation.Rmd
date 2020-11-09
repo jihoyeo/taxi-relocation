@@ -22,15 +22,39 @@ library(dplyr)
 library(scales)
 library(latex2exp)
 library(viridis)
+library(RColorBrewer)
+
+# display.brewer.all()
+#display.brewer.pal(n = 11, name = 'RdYlBu')
+# display.brewer.pal(n = 11, name = 'Paired')
+# col_idle <-brewer.pal(n = 11, name = "Paired")[4]
+# col_assign <-brewer.pal(n = 11, name = "Paired")[2]
+# col_oprt <-brewer.pal(n = 11, name = "Paired")[11]
+# col_inter <-brewer.pal(n = 11, name = "Paired")[8]
+# col_intra <-brewer.pal(n = 11, name = "Paired")[10]
+
+
+col_idle <- viridis(4)[2]
+col_assign <-"#ff7f0e"
+col_oprt <-viridis(4)[4]
+col_inter <-viridis(4)[3]
+col_intra <-viridis(4)[1]
+
+col_intra <-"#d62728"
+
 
 
 # Load dataset
-load("C:/Users/User/taxi-relocation/dashboard/vis_dat_default.RData")
+load("C:/Users/User/Documents/research/taxi-relocation/dashboard/vis_dat_default.RData")
+load("C:/Users/User/Documents/research/taxi-relocation/dashboard/vis_dat_inter_relo.RData")
+load("C:/Users/User/Documents/research/taxi-relocation/dashboard/vis_dat_intra_s1.RData")
+load("C:/Users/User/Documents/research/taxi-relocation/dashboard/vis_dat_intra_s2.RData")
 ```
 
 
 
-
+Without-relocation vs Inter-relocation
+=======================================================================
 
 Column {data-width=250}
 -----------------------------------------------------------------------
@@ -50,7 +74,7 @@ pl <- vis_dat_default %>%
     hoverinfo = "text"
   ) %>%
   add_markers(color = ~factor(state),
-              colors = c(viridis(10)[2],viridis(10)[5],viridis(10)[10]),
+              colors = c(col_assign,col_idle,col_oprt),
               frame = ~time) %>%
   animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
 
@@ -63,7 +87,7 @@ Column {data-width=250}
 ### With Inter-zonal Relocation
 
 ```{r}
-pl2 <- vis_dat_default[1:100,] %>%
+pl2 <- vis_dat_inter_relo %>%
   plot_ly(
     x = ~X, 
     y = ~Y, 
@@ -75,9 +99,62 @@ pl2 <- vis_dat_default[1:100,] %>%
     hoverinfo = "text"
   ) %>%
   add_markers(color = ~factor(state),
-              colors = c(viridis(10)[2],viridis(10)[5],viridis(10)[10]),
+              colors = c(col_assign,col_idle,col_inter,col_oprt),
               frame = ~time) %>%
   animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
 
 pl2
+```
+
+Intra-relocation: S1 vs S2
+=======================================================================
+
+Column {data-width=250}
+-----------------------------------------------------------------------
+
+### Without Relocation
+
+```{r}
+pl3 <- vis_dat_intra_s1 %>%
+  plot_ly(
+    x = ~X, 
+    y = ~Y, 
+    # size = ~pop, 
+    # color = ~state, 
+    # frame = ~time, 
+    text = ~paste('</br> VehicleID: ', VehicleID,
+                      '</br> State: ', state), 
+    hoverinfo = "text"
+  ) %>%
+  add_markers(color = ~factor(state),
+              colors = c(col_assign,col_idle,col_inter,col_intra,col_oprt),
+              frame = ~time) %>%
+  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
+
+pl3
+```
+
+Column {data-width=250}
+-----------------------------------------------------------------------
+
+### With Inter-zonal Relocation
+
+```{r}
+pl4 <- vis_dat_intra_s2 %>%
+  plot_ly(
+    x = ~X, 
+    y = ~Y, 
+    # size = ~pop, 
+    # color = ~state, 
+    # frame = ~time, 
+    text = ~paste('</br> VehicleID: ', VehicleID,
+                      '</br> State: ', state), 
+    hoverinfo = "text"
+  ) %>%
+  add_markers(color = ~factor(state),
+              colors = c(col_assign,col_idle,col_inter,col_intra,col_oprt),
+              frame = ~time) %>%
+  animation_opts(frame=1,transition = 0, easing = "linear", redraw = FALSE)
+
+pl4
 ```
