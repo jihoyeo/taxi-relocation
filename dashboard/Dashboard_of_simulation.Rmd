@@ -16,6 +16,7 @@ output:
 
 
 ```{r setup, include=FALSE}
+library(knitr)
 library(flexdashboard)
 library(plotly)
 library(dplyr)
@@ -23,6 +24,8 @@ library(scales)
 library(latex2exp)
 library(viridis)
 library(RColorBrewer)
+
+opts_knit$set(root.dir = "C:/dashboard")
 
 # display.brewer.all()
 #display.brewer.pal(n = 11, name = 'RdYlBu')
@@ -64,7 +67,7 @@ Column {data-width=200}
 ### Without Relocation
 
 ```{r}
-pl <- vis_dat_default %>% filter(time==1) %>%
+pl <- vis_dat_default %>%
   plot_ly(
     x = ~X, 
     y = ~Y, 
@@ -109,7 +112,7 @@ Column {data-width=200}
 ### With Inter-zonal Relocation
 
 ```{r}
-pl2 <- vis_dat_inter_relo %>% filter(time==1) %>%
+pl2 <- vis_dat_inter_relo %>%
   plot_ly(
     x = ~X, 
     y = ~Y, 
@@ -154,7 +157,7 @@ Column {data-width=200}
 ### Without Relocation
 
 ```{r}
-pl3 <- vis_dat_intra_s1 %>% filter(time==1) %>%
+pl3 <- vis_dat_intra_s1 %>%
   plot_ly(
     x = ~X, 
     y = ~Y, 
